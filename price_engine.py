@@ -1,5 +1,4 @@
 import threading
-import time
 from datetime import datetime, timedelta
 from config import PRICE_UPDATE_INTERVAL, KRASH_DURATION
 from database import update_all_prices, set_setting, get_setting
@@ -35,9 +34,7 @@ class PriceEngine:
             except (ValueError, TypeError):
                 set_setting('krash_end_time', '')
         
-        self.thread = threading.Thread(target=self._run_loop)
-        self.thread.daemon = True
-        self.thread.start()
+        self.thread = self.socketio.start_background_task(self._run_loop)
         
     def stop(self):
         """Stop the price engine"""
@@ -48,7 +45,7 @@ class PriceEngine:
     def _run_loop(self):
         """Main loop that updates prices every interval"""
         while self.running:
-            time.sleep(1)
+            self.socketio.sleep(1)
 
             try:
                 with self.lock:
