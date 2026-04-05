@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bar Traders - La Bourse des Boissons</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Orbitron:wght@700;800;900&display=swap"
+        rel="stylesheet">
+
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.js"></script>
+
+    <style>
+        /* ===== CSS VARIABLES ===== */
+        :root {
+            --bg-dark: #080d1a;
+            --bg-card: #0f1629;
+            --bg-card-hover: #161f3a;
+            --green: #00e676;
+            --green-light: #69f0ae;
+            --green-glow: rgba(0, 230, 118, 0.4);
+            --green-bg: rgba(0, 230, 118, 0.08);
+            --red: #ff1744;
+            --red-light: #ff5252;
+            --red-glow: rgba(255, 23, 68, 0.4);
+            --red-bg: rgba(255, 23, 68, 0.08);
+            --gold: #ffd740;
+            --gold-bright: #ffe57f;
+            --gold-glow: rgba(255, 215, 64, 0.5);
+            --text: #ffffff;
+            --text-muted: #8892b0;
+            --border: rgba(255, 255, 255, 0.06);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+        }
+
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 15% 15%, rgba(0, 230, 118, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 85%, rgba(255, 23, 68, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(255, 215, 64, 0.03) 0%, transparent 60%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            height: 60px;
+            background: linear-gradient(180deg, rgba(15, 22, 41, 0.98) 0%, rgba(8, 13, 26, 0.95) 100%);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            position: relative;
+            z-index: 10;
+            backdrop-filter: blur(20px);
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            opacity: 0.5;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            font-size: 2rem;
+            filter: drop-shadow(0 0 8px rgba(255, 215, 64, 0.3));
+        }
+
+        .logo-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--gold), #fff, var(--gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 3px;
+            text-shadow: none;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .live-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 230, 118, 0.1);
+            padding: 5px 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 230, 118, 0.3);
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--green);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: livePulse 1.5s ease-in-out infinite;
+        }
+
+        .timer-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 6px 18px;
+            border-radius: 30px;
+            border: 2px solid var(--gold);
+            box-shadow: 0 0 15px rgba(255, 215, 64, 0.15);
+        }
+
+        .timer-icon {
+            font-size: 1.1rem;
+        }
+
+        .timer-label {
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .timer-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: var(--green);
+            min-width: 50px;
+            text-align: center;
+            transition: color 0.3s;
+        }
+
+        .timer-value.warning { color: var(--gold); }
+        .timer-value.critical {
+            color: var(--red);
+            animation: pulseScale 0.5s ease-in-out infinite;
+        }
+
+        .timer-unit {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        /* ===== KRASH BANNER ===== */
+        .krash-banner {
+            display: none;
+            background: linear-gradient(90deg, #ff1744, #ffd740, #ff1744);
+            background-size: 300% 100%;
+            animation: gradientMove 1.5s linear infinite;
+            padding: 10px;
+            text-align: center;
+            z-index: 5;
+            position: relative;
+            box-shadow: 0 4px 30px rgba(255, 23, 68, 0.4);
+        }
+
+        .krash-banner.active { display: block; }
+
+        .krash-banner h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: #000;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            animation: krashTextPulse 0.6s ease-in-out infinite alternate;
+        }
+
+        .krash-timer {
+            color: #000;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        /* ===== MAIN ===== */
+        .main-content {
+            height: calc(100vh - 60px);
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        .main-content.with-krash {
+            height: calc(100vh - 60px - 50px);
+        }
+
+        /* ===== TICKER BAR  ===== */
+        .ticker-bar {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 12px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .ticker-label {
+            font-size: 0.65rem;
+            color: var(--gold);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            padding-right: 8px;
+            border-right: 1px solid var(--border);
+        }
+
+        .ticker-track {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .ticker-content {
+            display: flex;
+            gap: 24px;
+            animation: tickerScroll 30s linear infinite;
+            white-space: nowrap;
+        }
+
+        .ticker-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .ticker-item .t-name {
+            color: var(--text-muted);
+        }
+
+        .ticker-item .t-price {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+        }
+
+        .ticker-item .t-price.up { color: var(--red-light); }
+        .ticker-item .t-price.down { color: var(--green-light); }
+        .ticker-item .t-price.neutral { color: var(--text-muted); }
+
+        .ticker-item .t-var {
+            font-size: 0.65rem;
+            padding: 1px 5px;
+            border-radius: 4px;
+        }
+
+        .ticker-item .t-var.up { background: var(--red-bg); color: var(--red-light); }
+        .ticker-item .t-var.down { background: var(--green-bg); color: var(--green-light); }
+
+        /* ===== CATEGORIES ===== */
+        #categories-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow: hidden;
+            padding-bottom: 20px;
+        }
+
+        .category {
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            margin-bottom: 6px;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+            flex-shrink: 0;
+        }
+
+        .category-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 215, 64, 0.08);
+            border: 1px solid rgba(255, 215, 64, 0.2);
+            padding: 3px 14px;
+            border-radius: 20px;
+        }
+
+        .category-icon {
+            font-size: 1.4rem;
+        }
+
+        .category-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .category-count {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .category-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(255, 215, 64, 0.3), transparent);
+        }
+
+        /* ===== DRINKS GRID ===== */
+        .drinks-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        /* ===== DRINK CARD ===== */
+        .drink-card {
+            background: linear-gradient(160deg, rgba(15, 22, 41, 0.9) 0%, rgba(8, 13, 26, 0.95) 100%);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .drink-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 14px;
+            padding: 1px;
+            background: linear-gradient(160deg, transparent, transparent);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            transition: background 0.4s;
+        }
+
+        .drink-card.price-up {
+            border-color: var(--red);
+            background: linear-gradient(160deg, rgba(255, 23, 68, 0.06) 0%, rgba(8, 13, 26, 0.95) 100%);
+            box-shadow: 0 0 20px rgba(255, 23, 68, 0.12), inset 0 0 30px rgba(255, 23, 68, 0.03);
+        }
+
+        .drink-card.price-down {
+            border-color: var(--green);
+            background: linear-gradient(160deg, rgba(0, 230, 118, 0.06) 0%, rgba(8, 13, 26, 0.95) 100%);
+            box-shadow: 0 0 20px rgba(0, 230, 118, 0.12), inset 0 0 30px rgba(0, 230, 118, 0.03);
+        }
+
+        .drink-card.krash {
+            border-color: var(--gold);
+            box-shadow: 0 0 25px var(--gold-glow), inset 0 0 30px rgba(255, 215, 64, 0.05);
+            animation: krashPulse 1s ease-in-out infinite;
+        }
+
+        /* Drink emoji icon - large and visible */
+        .drink-icon-wrap {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .drink-icon-wrap::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(255, 215, 64, 0.08) 0%, transparent 70%);
+        }
+
+        .drink-card.price-up .drink-icon-wrap {
+            border-color: rgba(255, 23, 68, 0.2);
+            background: rgba(255, 23, 68, 0.06);
+        }
+
+        .drink-card.price-down .drink-icon-wrap {
+            border-color: rgba(0, 230, 118, 0.2);
+            background: rgba(0, 230, 118, 0.06);
+        }
+
+        .drink-card.krash .drink-icon-wrap {
+            border-color: rgba(255, 215, 64, 0.3);
+            background: rgba(255, 215, 64, 0.08);
+            animation: krashIconPulse 1.2s ease-in-out infinite;
+        }
+
+        /* Drink info - center */
+        .drink-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .drink-name {
+            font-size: 0.95rem;
+            font-weight: 800;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: 0.2px;
+            color: var(--text);
+        }
+
+        /* Sparkline */
+        .sparkline-svg {
+            width: 100%;
+            height: 20px;
+            margin-top: 2px;
+        }
+
+        /* Price section - right */
+        .price-section {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+            min-width: 70px;
+        }
+
+        .drink-price {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--text);
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .drink-price .unit {
+            font-size: 0.9rem;
+            color: var(--gold);
+            margin-left: 1px;
+        }
+
+        .variation-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .variation-badge.up {
+            background: var(--red-bg);
+            color: var(--red-light);
+            border: 1px solid rgba(255, 23, 68, 0.2);
+        }
+
+        .variation-badge.down {
+            background: var(--green-bg);
+            color: var(--green-light);
+            border: 1px solid rgba(0, 230, 118, 0.2);
+        }
+
+        .variation-badge.neutral {
+            background: rgba(136, 146, 176, 0.08);
+            color: var(--text-muted);
+            border: 1px solid rgba(136, 146, 176, 0.1);
+        }
+
+        .variation-arrow {
+            font-size: 0.75rem;
+        }
+
+        /* ===== WAITING ===== */
+        .waiting-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 20px;
+        }
+
+        .waiting-icon {
+            font-size: 5rem;
+            animation: float 3s ease-in-out infinite;
+            filter: drop-shadow(0 0 20px rgba(255, 215, 64, 0.3));
+        }
+
+        .waiting-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--gold), #fff, var(--gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .waiting-subtitle {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            animation: fadePulse 2s ease-in-out infinite;
+        }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.5); }
+            50% { opacity: 0.5; box-shadow: 0 0 0 4px rgba(0, 230, 118, 0); }
+        }
+
+        @keyframes pulseScale {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+
+        @keyframes fadePulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 300% 50%; }
+        }
+
+        @keyframes krashPulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 64, 0.15); }
+            50% { box-shadow: 0 0 30px rgba(255, 215, 64, 0.35), 0 0 60px rgba(255, 215, 64, 0.1); }
+        }
+
+        @keyframes krashIconPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes krashTextPulse {
+            from { transform: scale(1); letter-spacing: 4px; }
+            to { transform: scale(1.03); letter-spacing: 6px; }
+        }
+
+        @keyframes priceUpdate {
+            0% { transform: scale(1); }
+            30% { transform: scale(1.12); }
+            60% { transform: scale(0.97); }
+            100% { transform: scale(1); }
+        }
+
+        .price-updating {
+            animation: priceUpdate 0.5s ease-out;
+        }
+
+        @keyframes tickerScroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        @keyframes cardAppear {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .drink-card {
+            animation: cardAppear 0.4s ease-out both;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <span class="logo-icon">📈</span>
+            <span class="logo-text">BAR TRADERS</span>
+        </div>
+
+        <div class="header-right">
+            <div class="live-badge">
+                <span class="live-dot"></span>
+                <span>LIVE</span>
+            </div>
+
+            <div class="timer-box">
+                <span class="timer-icon">⏱</span>
+                <span class="timer-label">Prochain tick</span>
+                <span class="timer-value" id="timer-value">--</span>
+                <span class="timer-unit">s</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Krash Banner -->
+    <div class="krash-banner" id="krash-banner">
+        <h2>⚡ KRASH BOURSIER EN COURS ⚡</h2>
+        <div class="krash-timer">Temps restant: <span id="krash-remaining">5:00</span></div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-content">
+        <!-- Ticker Bar -->
+        <div class="ticker-bar" id="ticker-bar" style="display: none;">
+            <span class="ticker-label">📊 Cours</span>
+            <div class="ticker-track">
+                <div class="ticker-content" id="ticker-content"></div>
+            </div>
+        </div>
+
+        <div id="categories-container">
+            <div class="waiting-screen">
+                <div class="waiting-icon">🍺📊</div>
+                <h2 class="waiting-title">BAR TRADERS</h2>
+                <p class="waiting-subtitle">En attente du démarrage de la session...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const socket = io();
+
+        let drinks = {};
+        let priceHistory = {};
+        let krashActive = false;
+        let categoryConfig = {};
+
+        // Emoji map for individual drinks
+        const drinkEmojis = {
+            // Bières
+            'heineken': '🍺', 'corona': '🍺', 'leffe': '🍺', 'leffe blonde': '🍺',
+            'desperados': '🍺', 'guinness': '🍫', '1664': '🍺', 'kronenbourg': '🍺',
+            'stella': '🍺', 'budweiser': '🍺', 'carlsberg': '🍺', 'hoegaarden': '🍺',
+            'affligem': '🍺', 'grimbergen': '🍺', 'chouffe': '🍺', 'duvel': '🍺',
+            // Softs
+            'coca-cola': '🥤', 'coca cola': '🥤', 'coca': '🥤', 'orangina': '🍊',
+            'perrier': '💧', 'red bull': '⚡', 'ice tea': '🧊', 'sprite': '🥤',
+            'fanta': '🍊', 'schweppes': '🫧', 'limonade': '🍋', 'jus': '🧃',
+            // Cocktails
+            'mojito': '🍸', 'piña colada': '🍹', 'pina colada': '🍹', 'margarita': '🍸',
+            'sex on beach': '🏖️', 'sex on the beach': '🏖️', 'cuba libre': '🍹',
+            'tequila sunrise': '🌅', 'long island': '🍹', 'caipirinha': '🍸',
+            'cosmopolitan': '🍸', 'daiquiri': '🍸', 'gin tonic': '🍸',
+            'whisky sour': '🥃', 'old fashioned': '🥃', 'negroni': '🍸',
+            // Shots
+            'tequila': '🥃', 'vodka': '🥃', 'whisky': '🥃', 'rhum': '🥃',
+            'jagermeister': '🥃', 'sambuca': '🥃', 'malibu': '🥥',
+            // Vins
+            'vin rouge': '🍷', 'vin blanc': '🥂', 'rosé': '🍷', 'champagne': '🥂'
+        };
+
+        const drinkLogos = {
+            'desperados': '/static/images/logos/desperados.png',
+            'heineken': '/static/images/logos/heineken.png',
+            'guinness': '/static/images/logos/guinness.png',
+            'orangina': '/static/images/logos/orangina.png',
+            'perrier': '/static/images/logos/perrier.png',
+            'chipek': '/static/images/logos/chipek.png',
+            'grim': '/static/images/logos/grimbergen.png',
+            'phoenix': '/static/images/logos/phoenix.png',
+            'slash': '/static/images/logos/slash.png'
+        };
+
+        function getDrinkEmoji(name, type) {
+            const lower = name.toLowerCase();
+            
+            // Brand Logo Match
+            for (const [key, logoPath] of Object.entries(drinkLogos)) {
+                if (lower.includes(key)) {
+                    // Returns an image absolutely positioned to force it to fill and crop inside the flex container
+                    return `<img src="${logoPath}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block;">`;
+                }
+            }
+            
+            // Exact Emoji match
+            if (drinkEmojis[lower]) return drinkEmojis[lower];
+            // Partial Emoji match
+            for (const [key, emoji] of Object.entries(drinkEmojis)) {
+                if (lower.includes(key) || key.includes(lower)) return emoji;
+            }
+            // Fallback by type
+            const typeEmojis = {
+                'Bière': '🍺', 'Soft': '🥤', 'Cocktail': '🍹',
+                'Shot': '🥃', 'Vin': '🍷', 'Spiritueux': '🥃'
+            };
+            return typeEmojis[type] || '🍷';
+        }
+
+        const timerValue = document.getElementById('timer-value');
+        const krashBanner = document.getElementById('krash-banner');
+        const krashRemaining = document.getElementById('krash-remaining');
+        const mainContent = document.getElementById('main-content');
+        const categoriesContainer = document.getElementById('categories-container');
+        const tickerBar = document.getElementById('ticker-bar');
+        const tickerContent = document.getElementById('ticker-content');
+
+        // Load category config from API
+        async function loadCategoryConfig() {
+            try {
+                const res = await fetch('/api/types');
+                categoryConfig = await res.json();
+            } catch (e) {
+                categoryConfig = {
+                    'Bière': { icon: '🍺', order: 1 },
+                    'Soft': { icon: '🥤', order: 2 },
+                    'Cocktail': { icon: '🍹', order: 3 }
+                };
+            }
+        }
+
+        socket.on('connect', () => {
+            console.log('✅ Connected');
+            loadCategoryConfig();
+        });
+
+        socket.on('prices_update', (data) => {
+            if (data.drinks && Object.keys(data.drinks).length > 0) {
+                for (const category of Object.values(data.drinks)) {
+                    for (const drink of category) {
+                        if (!priceHistory[drink.id]) {
+                            priceHistory[drink.id] = [];
+                        }
+                        priceHistory[drink.id].push(drink.price_current);
+                        if (priceHistory[drink.id].length > 12) {
+                            priceHistory[drink.id].shift();
+                        }
+                    }
+                }
+
+                drinks = data.drinks;
+                const animate = ['price_update', 'krash_started', 'krash_ended'].includes(data.event);
+                renderDrinks(animate);
+                renderTicker();
+            }
+
+            if (data.event === 'krash_started') {
+                krashActive = true;
+                showKrashBanner();
+            } else if (data.event === 'krash_ended') {
+                krashActive = false;
+                hideKrashBanner();
+            }
+        });
+
+        socket.on('timer_update', (data) => {
+            updateTimer(data.timer);
+            if (data.krash_active) {
+                krashActive = true;
+                updateKrashTimer(data.krash_remaining);
+                showKrashBanner();
+            } else if (krashActive) {
+                krashActive = false;
+                hideKrashBanner();
+            }
+        });
+
+        socket.on('session_stopped', () => {
+            timerValue.textContent = '--';
+            timerValue.classList.remove('warning', 'critical');
+            showWaitingScreen();
+        });
+
+        socket.on('krash', (data) => {
+            krashActive = data.active;
+            data.active ? showKrashBanner() : hideKrashBanner();
+        });
+
+        function updateTimer(seconds) {
+            timerValue.textContent = seconds;
+            timerValue.classList.remove('warning', 'critical');
+            if (seconds <= 10) timerValue.classList.add('critical');
+            else if (seconds <= 20) timerValue.classList.add('warning');
+        }
+
+        function showKrashBanner() {
+            krashBanner.classList.add('active');
+            mainContent.classList.add('with-krash');
+        }
+
+        function hideKrashBanner() {
+            krashBanner.classList.remove('active');
+            mainContent.classList.remove('with-krash');
+        }
+
+        function updateKrashTimer(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            krashRemaining.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function showWaitingScreen() {
+            tickerBar.style.display = 'none';
+            categoriesContainer.innerHTML = `
+                <div class="waiting-screen">
+                    <div class="waiting-icon">🍺📊</div>
+                    <h2 class="waiting-title">BAR TRADERS</h2>
+                    <p class="waiting-subtitle">En attente du démarrage de la session...</p>
+                </div>
+            `;
+        }
+
+        function getTickerEmoji(name, type) {
+            // Version simplifiée pour le ticker - emoji texte uniquement, pas d'images
+            const lower = name.toLowerCase();
+            if (drinkEmojis[lower]) return drinkEmojis[lower];
+            for (const [key, emoji] of Object.entries(drinkEmojis)) {
+                if (lower.includes(key) || key.includes(lower)) return emoji;
+            }
+            const typeEmojis = {
+                'Bière': '🍺', 'Soft': '🥤', 'Cocktail': '🍹',
+                'Shot': '🥃', 'Vin': '🍷', 'Spiritueux': '🥃'
+            };
+            return typeEmojis[type] || '🍷';
+        }
+
+        function renderTicker() {
+            const allDrinks = [];
+            for (const category of Object.values(drinks)) {
+                for (const drink of category) {
+                    allDrinks.push(drink);
+                }
+            }
+            if (allDrinks.length === 0) return;
+
+            tickerBar.style.display = 'flex';
+
+            // Duplicate for seamless scrolling
+            let html = '';
+            const items = allDrinks.concat(allDrinks);
+            for (const drink of items) {
+                const variation = drink.price_previous ? drink.price_current - drink.price_previous : 0;
+                const isUp = variation > 0;
+                const isDown = variation < 0;
+                const trendClass = isUp ? 'up' : (isDown ? 'down' : 'neutral');
+                const arrow = isUp ? '▲' : (isDown ? '▼' : '');
+                const varText = variation !== 0 ? (isUp ? '+' : '') + variation.toFixed(2) + '€' : '';
+                const emoji = getTickerEmoji(drink.name, drink.type);
+
+                html += `
+                    <div class="ticker-item">
+                        <span>${emoji}</span>
+                        <span class="t-name">${drink.name}</span>
+                        <span class="t-price ${trendClass}">${drink.price_current.toFixed(2)}€</span>
+                        ${varText ? `<span class="t-var ${trendClass}">${arrow} ${varText}</span>` : ''}
+                    </div>
+                `;
+            }
+            tickerContent.innerHTML = html;
+        }
+
+        function renderDrinks(animate = false) {
+            const sortedCategories = Object.keys(drinks).sort((a, b) =>
+                (categoryConfig[a]?.order || 99) - (categoryConfig[b]?.order || 99)
+            );
+
+            let html = '';
+
+            for (const category of sortedCategories) {
+                const items = drinks[category];
+                if (!items || items.length === 0) continue;
+
+                const config = categoryConfig[category] || { icon: '🍷', order: 99 };
+
+                html += `
+                    <div class="category">
+                        <div class="category-header">
+                            <div class="category-badge">
+                                <span class="category-icon">${config.icon}</span>
+                                <span class="category-title">${category}s</span>
+                            </div>
+                            <span class="category-count">${items.length} boissons</span>
+                            <div class="category-line"></div>
+                        </div>
+                        <div class="drinks-grid">
+                `;
+
+                items.forEach((drink, i) => {
+                    html += renderCard(drink, animate, i);
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+
+            categoriesContainer.innerHTML = html;
+        }
+
+        function generateSparklineSVG(drinkId, trend) {
+            let data = priceHistory[drinkId] || [];
+            if (data.length < 2) {
+                const base = 5;
+                data = [];
+                for (let i = 0; i < 10; i++) {
+                    data.push(base + (Math.random() - 0.5) * 2);
+                }
+            }
+
+            const min = Math.min(...data);
+            const max = Math.max(...data);
+            const range = max - min || 1;
+
+            const width = 120;
+            const height = 24;
+            const padding = 2;
+
+            let pathD = '';
+            let areaD = '';
+
+            data.forEach((val, i) => {
+                const x = (i / (data.length - 1)) * (width - padding * 2) + padding;
+                const y = height - padding - ((val - min) / range) * (height - padding * 2);
+
+                if (i === 0) {
+                    pathD = `M ${x} ${y}`;
+                    areaD = `M ${x} ${height} L ${x} ${y}`;
+                } else {
+                    pathD += ` L ${x} ${y}`;
+                    areaD += ` L ${x} ${y}`;
+                }
+            });
+
+            areaD += ` L ${width - padding} ${height} Z`;
+
+            const color = trend === 'down' ? '#00e676' : (trend === 'up' ? '#ff1744' : '#4a5568');
+            const fillColor = trend === 'down' ? 'rgba(0,230,118,0.2)' : (trend === 'up' ? 'rgba(255,23,68,0.2)' : 'rgba(74,85,104,0.1)');
+
+            return `
+                <svg class="sparkline-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+                    <defs>
+                        <linearGradient id="grad-${drinkId}" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:${fillColor};stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:${fillColor};stop-opacity:0" />
+                        </linearGradient>
+                    </defs>
+                    <path d="${areaD}" fill="url(#grad-${drinkId})" />
+                    <path d="${pathD}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            `;
+        }
+
+        function renderCard(drink, animate, index) {
+            const variation = drink.price_previous ? drink.price_current - drink.price_previous : 0;
+            const isUp = variation > 0;
+            const isDown = variation < 0;
+
+            let cardClass = 'drink-card';
+            if (krashActive) cardClass += ' krash';
+            else if (isDown) cardClass += ' price-down';
+            else if (isUp) cardClass += ' price-up';
+
+            let badgeClass = 'neutral';
+            let arrow = '';
+            let varText = '—';
+
+            if (isUp) {
+                badgeClass = 'up';
+                arrow = '▲';
+                varText = '+' + variation.toFixed(2) + '€';
+            } else if (isDown) {
+                badgeClass = 'down';
+                arrow = '▼';
+                varText = variation.toFixed(2) + '€';
+            }
+
+            const priceClass = animate ? 'price-updating' : '';
+            const trend = isDown ? 'down' : (isUp ? 'up' : 'neutral');
+            const sparklineSVG = generateSparklineSVG(drink.id, trend);
+            const emoji = getDrinkEmoji(drink.name, drink.type);
+            const delay = index * 0.05;
+
+            return `
+                <div class="${cardClass}" style="animation-delay: ${delay}s;">
+                    <div class="drink-icon-wrap">
+                        <span>${emoji}</span>
+                    </div>
+                    <div class="drink-info">
+                        <div class="drink-name" title="${drink.name}">${drink.name}</div>
+                        ${sparklineSVG}
+                    </div>
+                    <div class="price-section">
+                        <div class="drink-price ${priceClass}">
+                            ${drink.price_current.toFixed(2)}<span class="unit">€</span>
+                        </div>
+                        <div class="variation-badge ${badgeClass}">
+                            <span class="variation-arrow">${arrow}</span>
+                            <span>${varText}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Init
+        loadCategoryConfig().then(() => {
+            fetch('/api/drinks')
+                .then(res => res.json())
+                .then(data => {
+                    if (Object.keys(data).length > 0) {
+                        drinks = data;
+                        renderDrinks();
+                        renderTicker();
+                    }
+                });
+        });
+    </script>
+</body>
+
+</html>

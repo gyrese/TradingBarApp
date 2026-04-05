@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Bar Traders</title>
+    <meta name="description" content="Backoffice administrateur pour gérer les boissons">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .admin-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-lg);
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            border-radius: var(--radius-lg);
+            background: linear-gradient(135deg, rgba(74, 158, 255, 0.2), rgba(168, 85, 247, 0.2));
+        }
+
+        .stat-info .value {
+            font-family: var(--font-mono);
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .stat-info .label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-top: var(--spacing-xs);
+        }
+
+        .table-container {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .table-scroll {
+            overflow-x: auto;
+        }
+
+        .drink-type-badge {
+            display: inline-block;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .drink-type-badge.bière {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+
+        .drink-type-badge.soft {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--green-bright);
+        }
+
+        .drink-type-badge.cocktail {
+            background: rgba(168, 85, 247, 0.2);
+            color: var(--purple-accent);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-logo">
+            <span class="icon">⚙️</span>
+            <h1><span class="text-gradient">ADMIN</span></h1>
+        </div>
+
+        <div class="timer-container">
+            <div class="timer" id="timer">
+                <span id="timer-value">90</span>s
+            </div>
+        </div>
+
+        <nav class="header-nav">
+            <a href="/wall">Wall</a>
+            <a href="/caisse">Caisse</a>
+            <a href="/admin" class="active">Admin</a>
+            <a href="/logout" style="color: #ff5252;">🔒 Déco</a>
+        </nav>
+    </header>
+
+    <!-- Krash Banner -->
+    <div class="krash-banner" id="krash-banner">
+        <h2>🔥 KRASH EN COURS 🔥</h2>
+        <div class="krash-timer">Temps restant: <span id="krash-remaining">5:00</span></div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <div class="admin-header">
+                <h1>Gestion des Boissons</h1>
+                <button class="btn btn-primary" onclick="openAddModal()">
+                    ➕ Ajouter une boisson
+                </button>
+            </div>
+
+            <!-- Stats -->
+            <div class="admin-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">🍺</div>
+                    <div class="stat-info">
+                        <div class="value" id="stat-beers">0</div>
+                        <div class="label">Bières</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🥤</div>
+                    <div class="stat-info">
+                        <div class="value" id="stat-softs">0</div>
+                        <div class="label">Softs</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🍹</div>
+                    <div class="stat-info">
+                        <div class="value" id="stat-cocktails">0</div>
+                        <div class="label">Cocktails</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-info">
+                        <div class="value" id="stat-sales">0€</div>
+                        <div class="label">Ventes Aujourd'hui</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Drinks Table -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h2>Liste des Boissons</h2>
+                </div>
+                <div class="table-scroll">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Type</th>
+                                <th>Prix Min</th>
+                                <th>Prix Max</th>
+                                <th>Prix Krash</th>
+                                <th>Prix Actuel</th>
+                                <th>TVA</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="drinks-table-body">
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: var(--spacing-xl);">
+                                    <div class="loading-spinner" style="margin: 0 auto;"></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+            <!-- PIN Change Card -->
+            <div class="table-container" style="margin-top: 2rem;">
+                <div class="table-header">
+                    <h2>🔐 Code PIN d'accès</h2>
+                </div>
+                <div style="padding: 1.5rem;">
+                    <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">
+                        Ce code protège l'accès à la Caisse et à l'Admin. Le Wall reste public.
+                    </p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: end; max-width: 680px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label class="form-label">PIN actuel</label>
+                            <input type="password" class="form-input" id="pin-current"
+                                   inputmode="numeric" maxlength="8" placeholder="••••" autocomplete="off">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label class="form-label">Nouveau PIN</label>
+                            <input type="password" class="form-input" id="pin-new"
+                                   inputmode="numeric" maxlength="8" placeholder="4–8 chiffres" autocomplete="off">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label class="form-label">Confirmer</label>
+                            <input type="password" class="form-input" id="pin-confirm"
+                                   inputmode="numeric" maxlength="8" placeholder="4–8 chiffres" autocomplete="off">
+                        </div>
+                        <button class="btn btn-primary" onclick="changePin()" style="height: 42px; white-space: nowrap;">
+                            Changer le PIN
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Add/Edit Drink Modal -->
+    <div class="modal-overlay" id="drink-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">Ajouter une Boisson</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+
+            <form id="drink-form">
+                <input type="hidden" id="drink-id">
+
+                <div class="form-group">
+                    <label class="form-label" for="drink-name">Nom de la boisson</label>
+                    <input type="text" class="form-input" id="drink-name" required placeholder="Ex: Mojito">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="drink-type">Type</label>
+                    <select class="form-select" id="drink-type" required>
+                        <option value="Bière">🍺 Bière</option>
+                        <option value="Soft">🥤 Soft</option>
+                        <option value="Cocktail">🍹 Cocktail</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="drink-price-min">Prix Minimum (€)</label>
+                        <input type="number" class="form-input" id="drink-price-min" step="0.10" min="0" required
+                            placeholder="2.00">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="drink-price-max">Prix Maximum (€)</label>
+                        <input type="number" class="form-input" id="drink-price-max" step="0.10" min="0" required
+                            placeholder="5.00">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="drink-price-krash">Prix Krash (€)</label>
+                        <input type="number" class="form-input" id="drink-price-krash" step="0.10" min="0" required
+                            placeholder="1.00">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="drink-tva">TVA (%)</label>
+                        <input type="number" class="form-input" id="drink-tva" step="0.1" min="0" value="20"
+                            placeholder="20">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn" style="background: var(--border-color);"
+                        onclick="closeModal()">Annuler</button>
+                    <button type="submit" class="btn btn-primary" id="modal-submit-btn">Ajouter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>🗑️ Supprimer la boisson</h3>
+                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <p style="color: var(--text-secondary);">
+                Êtes-vous sûr de vouloir supprimer <strong id="delete-drink-name"></strong>?<br>
+                Cette action est irréversible.
+            </p>
+            <div class="modal-footer">
+                <button class="btn" style="background: var(--border-color);"
+                    onclick="closeDeleteModal()">Annuler</button>
+                <button class="btn btn-danger" id="confirm-delete-btn">Supprimer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/js/admin.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bar Traders — Accès</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #080d1a;
+            --bg-card: #0f1629;
+            --green: #00e676;
+            --green-glow: rgba(0, 230, 118, 0.25);
+            --red: #ff1744;
+            --gold: #ffd740;
+            --gold-glow: rgba(255, 215, 64, 0.2);
+            --text: #ffffff;
+            --text-muted: #607d8b;
+            --border: rgba(255, 255, 255, 0.08);
+            --blue: #448aff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 30%, rgba(0, 230, 118, 0.04) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 70%, rgba(255, 215, 64, 0.04) 0%, transparent 55%);
+            pointer-events: none;
+        }
+
+        .login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            background: linear-gradient(135deg, var(--gold), #fff 60%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+            margin: 0 0 28px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 10px;
+        }
+
+        .pin-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: 'Orbitron', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 0.3em;
+            padding: 16px 20px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            -webkit-text-security: disc;
+        }
+
+        .pin-input:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px var(--gold-glow);
+        }
+
+        .error-msg {
+            background: rgba(255, 23, 68, 0.1);
+            border: 1px solid rgba(255, 23, 68, 0.3);
+            border-radius: 8px;
+            color: var(--red);
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-align: center;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+        }
+
+        /* PIN keypad */
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .key {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 1.2rem;
+            font-weight: 700;
+            padding: 16px;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+            user-select: none;
+            text-align: center;
+        }
+
+        .key:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .key:active {
+            transform: scale(0.94);
+            background: rgba(255, 215, 64, 0.12);
+        }
+
+        .key.del {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        .key.zero {
+            grid-column: 2;
+        }
+
+        .btn-login {
+            width: 100%;
+            background: linear-gradient(135deg, #00c853, #00e676);
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            font-size: 1rem;
+            font-weight: 800;
+            padding: 16px;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .btn-login:hover { opacity: 0.9; }
+        .btn-login:active { transform: scale(0.98); }
+        .btn-login:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+
+        .wall-link {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .wall-link a {
+            color: var(--blue);
+            text-decoration: none;
+        }
+
+        .wall-link a:hover { text-decoration: underline; }
+
+        /* Dot indicators */
+        .dots {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 14px 0 0;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .dot.filled {
+            background: var(--gold);
+            border-color: var(--gold);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-card">
+        <div class="logo">
+            <div class="logo-title">BAR TRADERS</div>
+            <div class="logo-sub">La Bourse des Boissons</div>
+        </div>
+
+        <div class="divider"></div>
+
+        {% if error %}
+        <div class="error-msg">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/login{% if request.args.get('next') %}?next={{ request.args.get('next') }}{% endif %}" id="login-form">
+            <label for="pin">Code PIN</label>
+            <input type="password" class="pin-input" id="pin" name="pin" inputmode="numeric"
+                   pattern="[0-9]*" maxlength="8" autocomplete="off" autofocus
+                   placeholder="••••">
+            <div class="dots" id="dots"></div>
+
+            <div class="keypad">
+                <button type="button" class="key" onclick="appendDigit('1')">1</button>
+                <button type="button" class="key" onclick="appendDigit('2')">2</button>
+                <button type="button" class="key" onclick="appendDigit('3')">3</button>
+                <button type="button" class="key" onclick="appendDigit('4')">4</button>
+                <button type="button" class="key" onclick="appendDigit('5')">5</button>
+                <button type="button" class="key" onclick="appendDigit('6')">6</button>
+                <button type="button" class="key" onclick="appendDigit('7')">7</button>
+                <button type="button" class="key" onclick="appendDigit('8')">8</button>
+                <button type="button" class="key" onclick="appendDigit('9')">9</button>
+                <button type="button" class="key zero" onclick="appendDigit('0')">0</button>
+                <button type="button" class="key del" onclick="deleteDigit()">⌫</button>
+            </div>
+
+            <button type="submit" class="btn-login" id="submit-btn" disabled>
+                🔓 Accéder
+            </button>
+        </form>
+
+        <div class="wall-link">
+            <a href="/wall">→ Voir le Wall public</a>
+        </div>
+    </div>
+
+    <script>
+        const pinInput = document.getElementById('pin');
+        const submitBtn = document.getElementById('submit-btn');
+        const dotsEl = document.getElementById('dots');
+
+        function updateDots() {
+            const len = pinInput.value.length;
+            const max = parseInt(pinInput.getAttribute('maxlength'));
+            dotsEl.innerHTML = Array.from({ length: Math.max(len, 4) }, (_, i) =>
+                `<div class="dot ${i < len ? 'filled' : ''}"></div>`
+            ).join('');
+            submitBtn.disabled = len < 4;
+        }
+
+        function appendDigit(d) {
+            if (pinInput.value.length < parseInt(pinInput.getAttribute('maxlength'))) {
+                pinInput.value += d;
+                updateDots();
+            }
+        }
+
+        function deleteDigit() {
+            pinInput.value = pinInput.value.slice(0, -1);
+            updateDots();
+        }
+
+        pinInput.addEventListener('input', updateDots);
+
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (e.key >= '0' && e.key <= '9') appendDigit(e.key);
+            else if (e.key === 'Backspace') deleteDigit();
+        });
+
+        updateDots();
+    </script>
+</body>
+</html>

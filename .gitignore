@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Base de données (ne pas versionner les données de prod)
+*.db
+*.sqlite3
+
+# Variables d'environnement
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Notes internes non destinées au repo
+CLAUDE.md
+gemini.md

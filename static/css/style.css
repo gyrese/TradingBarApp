@@ -1,0 +1,908 @@
+/* ==================== VARIABLES ==================== */
+:root {
+    /* Colors - Stock Market Theme */
+    --bg-dark: #0a0e17;
+    --bg-card: #12182a;
+    --bg-card-hover: #1a2340;
+    --bg-header: rgba(18, 24, 42, 0.95);
+    
+    --green-bright: #00ff88;
+    --green-dark: #00cc6a;
+    --green-glow: rgba(0, 255, 136, 0.3);
+    
+    --red-bright: #ff4757;
+    --red-dark: #cc3a47;
+    --red-glow: rgba(255, 71, 87, 0.3);
+    
+    --gold: #ffd700;
+    --gold-glow: rgba(255, 215, 0, 0.3);
+    
+    --blue-accent: #4a9eff;
+    --purple-accent: #a855f7;
+    
+    --text-primary: #ffffff;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    
+    --border-color: rgba(255, 255, 255, 0.1);
+    
+    /* Typography */
+    --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+    
+    /* Border Radius */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
+    --shadow-glow-green: 0 0 20px var(--green-glow);
+    --shadow-glow-red: 0 0 20px var(--red-glow);
+}
+
+/* ==================== RESET & BASE ==================== */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-main);
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+/* Background Pattern */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        radial-gradient(ellipse at 20% 20%, rgba(74, 158, 255, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+        linear-gradient(180deg, var(--bg-dark) 0%, #0d1321 100%);
+    z-index: -1;
+}
+
+/* ==================== TYPOGRAPHY ==================== */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.text-gradient {
+    background: linear-gradient(135deg, var(--gold) 0%, #fff 50%, var(--gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.text-green { color: var(--green-bright); }
+.text-red { color: var(--red-bright); }
+.text-muted { color: var(--text-secondary); }
+
+/* ==================== HEADER ==================== */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: var(--bg-header);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border-color);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-xl);
+}
+
+.header-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.header-logo h1 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+.header-logo .icon {
+    font-size: 2rem;
+}
+
+.header-nav {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.header-nav a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.header-nav a:hover,
+.header-nav a.active {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* ==================== TIMER ==================== */
+.timer-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+}
+
+.timer {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--border-color);
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    transition: all 0.3s ease;
+}
+
+.timer.warning {
+    border-color: var(--gold);
+    color: var(--gold);
+    animation: pulse 0.5s ease-in-out infinite;
+}
+
+.timer.critical {
+    border-color: var(--red-bright);
+    color: var(--red-bright);
+    animation: shake 0.3s ease-in-out infinite, glow-red 0.5s ease-in-out infinite alternate;
+}
+
+.timer-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-family: var(--font-main);
+    font-weight: 500;
+}
+
+/* ==================== MAIN CONTENT ==================== */
+.main-content {
+    padding-top: 100px;
+    padding-bottom: var(--spacing-2xl);
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-lg);
+}
+
+/* ==================== CATEGORY SECTIONS ==================== */
+.category-section {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.category-icon {
+    font-size: 2rem;
+}
+
+.category-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+/* ==================== DRINK GRID ==================== */
+.drinks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+/* ==================== DRINK CARD ==================== */
+.drink-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.drink-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--blue-accent), var(--purple-accent));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.drink-card:hover {
+    background: var(--bg-card-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.drink-card:hover::before {
+    opacity: 1;
+}
+
+.drink-card.rising {
+    border-color: var(--green-bright);
+    box-shadow: var(--shadow-glow-green);
+}
+
+.drink-card.falling {
+    border-color: var(--red-bright);
+    box-shadow: var(--shadow-glow-red);
+}
+
+.drink-card.krash {
+    border-color: var(--gold);
+    animation: krash-pulse 1s ease-in-out infinite;
+}
+
+.drink-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.drink-type {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.drink-price-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--spacing-md);
+}
+
+.drink-price {
+    font-family: var(--font-mono);
+    font-size: 2.5rem;
+    font-weight: 800;
+}
+
+.drink-price-unit {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+}
+
+.drink-variation {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--spacing-xs);
+}
+
+.variation-arrow {
+    font-size: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.variation-arrow.up {
+    color: var(--green-bright);
+    animation: bounce-up 0.5s ease;
+}
+
+.variation-arrow.down {
+    color: var(--red-bright);
+    animation: bounce-down 0.5s ease;
+}
+
+.variation-amount {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+}
+
+.variation-amount.positive {
+    color: var(--green-bright);
+    background: rgba(0, 255, 136, 0.15);
+}
+
+.variation-amount.negative {
+    color: var(--red-bright);
+    background: rgba(255, 71, 87, 0.15);
+}
+
+/* Sparkline */
+.sparkline-container {
+    margin-top: var(--spacing-md);
+    height: 40px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-xs);
+}
+
+.sparkline {
+    width: 100%;
+    height: 100%;
+}
+
+/* ==================== KRASH BANNER ==================== */
+.krash-banner {
+    position: fixed;
+    top: 80px;
+    left: 0;
+    right: 0;
+    background: linear-gradient(90deg, var(--red-bright), var(--gold), var(--red-bright));
+    background-size: 200% 100%;
+    animation: gradient-move 2s linear infinite;
+    padding: var(--spacing-md);
+    text-align: center;
+    z-index: 999;
+    display: none;
+}
+
+.krash-banner.active {
+    display: block;
+}
+
+.krash-banner h2 {
+    font-size: 1.5rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    color: var(--bg-dark);
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    animation: krash-text 0.5s ease-in-out infinite alternate;
+}
+
+.krash-timer {
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    color: var(--bg-dark);
+    margin-top: var(--spacing-xs);
+}
+
+/* ==================== CAISSE INTERFACE ==================== */
+.caisse-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.caisse-btn {
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.caisse-btn:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--blue-accent);
+    transform: scale(1.02);
+}
+
+.caisse-btn:active {
+    transform: scale(0.98);
+}
+
+.caisse-btn .name {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+}
+
+.caisse-btn .price {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--green-bright);
+}
+
+.sales-panel {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+}
+
+.sales-summary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.summary-card {
+    background: rgba(0, 0, 0, 0.3);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    text-align: center;
+}
+
+.summary-card .value {
+    font-family: var(--font-mono);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--green-bright);
+}
+
+.summary-card .label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: var(--spacing-xs);
+}
+
+.sales-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.sale-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sale-item:last-child {
+    border-bottom: none;
+}
+
+/* ==================== KRASH BUTTON ==================== */
+.krash-button {
+    background: linear-gradient(135deg, var(--red-bright), var(--red-dark));
+    color: white;
+    border: none;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    border-radius: var(--radius-lg);
+    font-size: 1.5rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(255, 71, 87, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.krash-button::before {
+    content: '💥';
+    position: absolute;
+    top: 50%;
+    left: var(--spacing-md);
+    transform: translateY(-50%);
+    font-size: 1.25rem;
+}
+
+.krash-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 25px rgba(255, 71, 87, 0.6);
+}
+
+.krash-button:active {
+    transform: scale(0.98);
+}
+
+.krash-button.active {
+    background: linear-gradient(135deg, var(--gold), #ffa500);
+    animation: pulse 1s ease-in-out infinite;
+}
+
+/* ==================== ADMIN INTERFACE ==================== */
+.admin-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--spacing-xl);
+}
+
+@media (max-width: 1024px) {
+    .admin-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.admin-panel {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+}
+
+.admin-panel h2 {
+    font-size: 1.25rem;
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Admin Table */
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: var(--spacing-md);
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.admin-table th {
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.admin-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-table .actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+/* ==================== FORMS ==================== */
+.form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.form-label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.form-input,
+.form-select {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.form-input:focus,
+.form-select:focus {
+    outline: none;
+    border-color: var(--blue-accent);
+    box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.2);
+}
+
+/* ==================== BUTTONS ==================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--blue-accent), var(--purple-accent));
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(74, 158, 255, 0.4);
+}
+
+.btn-success {
+    background: var(--green-bright);
+    color: var(--bg-dark);
+}
+
+.btn-danger {
+    background: var(--red-bright);
+    color: white;
+}
+
+.btn-sm {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.75rem;
+}
+
+.btn-icon {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: var(--radius-sm);
+}
+
+/* ==================== ANIMATIONS ==================== */
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+}
+
+@keyframes glow-red {
+    from { box-shadow: 0 0 5px var(--red-bright); }
+    to { box-shadow: 0 0 20px var(--red-bright), 0 0 40px var(--red-glow); }
+}
+
+@keyframes bounce-up {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+@keyframes bounce-down {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(5px); }
+}
+
+@keyframes gradient-move {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+@keyframes krash-pulse {
+    0%, 100% { 
+        box-shadow: 0 0 5px var(--gold);
+        border-color: var(--gold);
+    }
+    50% { 
+        box-shadow: 0 0 25px var(--gold), 0 0 50px var(--gold-glow);
+        border-color: #fff;
+    }
+}
+
+@keyframes krash-text {
+    from { transform: scale(1); opacity: 1; }
+    to { transform: scale(1.05); opacity: 0.9; }
+}
+
+@keyframes price-update {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.1); }
+    50% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+}
+
+.price-updating {
+    animation: price-update 0.4s ease-out;
+}
+
+/* ==================== TOAST NOTIFICATIONS ==================== */
+.toast-container {
+    position: fixed;
+    bottom: var(--spacing-lg);
+    right: var(--spacing-lg);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.toast {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-left: 4px solid var(--green-bright);
+    box-shadow: var(--shadow-lg);
+    animation: slide-in 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.toast.success { border-color: var(--green-bright); }
+.toast.error { border-color: var(--red-bright); }
+.toast.warning { border-color: var(--gold); }
+
+@keyframes slide-in {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ==================== LOADING ==================== */
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--blue-accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ==================== MODAL ==================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 9998;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    max-width: 500px;
+    width: 90%;
+    border: 1px solid var(--border-color);
+    animation: modal-in 0.3s ease;
+}
+
+@keyframes modal-in {
+    from {
+        transform: scale(0.9) translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.modal-header h3 {
+    font-size: 1.25rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 768px) {
+    .header {
+        padding: 0 var(--spacing-md);
+    }
+    
+    .header-logo h1 {
+        font-size: 1.25rem;
+    }
+    
+    .header-nav {
+        display: none;
+    }
+    
+    .timer {
+        font-size: 1.25rem;
+        padding: var(--spacing-xs) var(--spacing-md);
+    }
+    
+    .drinks-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+    
+    .drink-price {
+        font-size: 2rem;
+    }
+    
+    .caisse-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .drinks-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .caisse-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
