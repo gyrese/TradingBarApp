@@ -334,6 +334,16 @@ def api_stop_krash():
         return jsonify({'success': True})
     return jsonify({'error': 'Price engine not running'}), 500
 
+@app.route('/api/engine/start', methods=['POST'])
+@login_required
+def api_engine_start():
+    """Manually start or restart the price engine"""
+    global price_engine
+    if price_engine.running:
+        price_engine.stop()
+    price_engine.start()
+    return jsonify({'success': True, 'status': price_engine.get_status()})
+
 @app.route('/api/settings/pin', methods=['PUT'])
 @login_required
 def api_change_pin():
@@ -355,8 +365,10 @@ def api_change_pin():
 
 @socketio.on('connect')
 def handle_connect():
-    """Handle client connection"""
+    """Handle client connection — start engine lazily (survives gunicorn fork)"""
     global price_engine
+    if price_engine and not price_engine.running:
+        price_engine.start()
     # Send current status
     if price_engine:
         emit('status', price_engine.get_status())
@@ -381,16 +393,15 @@ def handle_request_prices():
         'drinks': drinks
     })
 
+# ==================== INIT ====================
+
+# Init DB and create engine at import time — start() appelé au premier connect
+init_db()
+price_engine = PriceEngine(socketio)
+
 # ==================== MAIN ====================
 
 if __name__ == '__main__':
-    # Initialize database
-    init_db()
-    
-    # Initialize and start price engine
-    price_engine = PriceEngine(socketio)
-    price_engine.start()
-    
     print("\n" + "="*50)
     print("BAR TRADERS - Stock Exchange")
     print("="*50)

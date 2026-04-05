@@ -959,9 +959,15 @@
         <div class="header-center">
             <div class="timer-pill" id="timer">
                 <span>⏱</span>
-                <span id="timer-value">90</span>
+                <span id="timer-value">--</span>
                 <span style="color: var(--text-muted); font-size: 0.8rem;">s</span>
             </div>
+            <button id="engine-start-btn" onclick="startEngine()"
+                style="margin-left:10px; background:rgba(68,138,255,0.15); border:1px solid rgba(68,138,255,0.4);
+                       color:var(--blue); border-radius:8px; padding:4px 10px; font-size:0.75rem;
+                       cursor:pointer; display:none;">
+                ▶ Démarrer
+            </button>
         </div>
 
         <nav class="header-nav">
@@ -1267,11 +1273,33 @@
         }
 
         // ==================== TIMER ====================
+        const engineStartBtn = document.getElementById('engine-start-btn');
+
+        // Afficher le bouton si pas de timer_update reçu après 5s
+        let engineWatchdog = setTimeout(() => {
+            engineStartBtn.style.display = 'inline-block';
+        }, 5000);
+
         function updateTimer(seconds) {
+            clearTimeout(engineWatchdog);
+            engineStartBtn.style.display = 'none';
             timerValueEl.textContent = seconds;
             timerEl.classList.remove('warning', 'critical');
             if (seconds <= 10) timerEl.classList.add('critical');
             else if (seconds <= 20) timerEl.classList.add('warning');
+        }
+
+        async function startEngine() {
+            engineStartBtn.textContent = '⏳ ...';
+            engineStartBtn.disabled = true;
+            try {
+                await fetch('/api/engine/start', { method: 'POST' });
+                engineStartBtn.textContent = '✅ Démarré';
+                setTimeout(() => { engineStartBtn.style.display = 'none'; }, 2000);
+            } catch(e) {
+                engineStartBtn.textContent = '❌ Erreur';
+                engineStartBtn.disabled = false;
+            }
         }
 
         // ==================== KRASH ====================
