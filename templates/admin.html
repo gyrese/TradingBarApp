@@ -121,6 +121,125 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Icon picker */
+        .icon-picker {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+        }
+        .icon-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .icon-tab {
+            flex: 1;
+            padding: 7px 0;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: 500;
+            transition: background 0.15s, color 0.15s;
+        }
+        .icon-tab:first-child { border-right: 1px solid var(--border-color); }
+        .icon-tab.active {
+            background: rgba(74,158,255,0.12);
+            color: #4a9eff;
+            font-weight: 600;
+        }
+        .icon-panel { display: none; padding: 8px; }
+        .icon-panel.active { display: block; }
+
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 2px;
+        }
+        .emoji-btn {
+            aspect-ratio: 1;
+            font-size: 1.25rem;
+            background: none;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.1s, border-color 0.1s;
+        }
+        .emoji-btn:hover { background: rgba(255,255,255,0.07); }
+        .emoji-btn.selected {
+            border-color: #4a9eff;
+            background: rgba(74,158,255,0.15);
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 22px 12px;
+            text-align: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .upload-zone:hover {
+            border-color: #4a9eff;
+            background: rgba(74,158,255,0.05);
+        }
+        .upload-zone input[type=file] { display: none; }
+
+        .icon-preview-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-top: 1px solid var(--border-color);
+            background: rgba(0,0,0,0.15);
+        }
+        .icon-preview-box {
+            width: 38px; height: 38px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.6rem;
+            background: var(--bg-input, #0d0d1a);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .icon-preview-box img { width: 100%; height: 100%; object-fit: contain; }
+        .icon-preview-label {
+            flex: 1;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+        .icon-clear-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        .icon-clear-btn:hover { border-color: #ff5252; color: #ff5252; }
+        .z-filter-btn {
+            padding: 0.25rem 0.7rem;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .z-filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .z-filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
     </style>
 </head>
 
@@ -157,9 +276,14 @@
         <div class="container">
             <div class="admin-header">
                 <h1>Gestion des Boissons</h1>
-                <button class="btn btn-primary" onclick="openAddModal()">
-                    ➕ Ajouter une boisson
-                </button>
+                <div style="display:flex; gap:0.75rem;">
+                    <button class="btn btn-primary" style="background:#2a2d4a; border:1px solid #4a4d7a;" onclick="openZModal()">
+                        📋 Historique Z
+                    </button>
+                    <button class="btn btn-primary" onclick="openAddModal()">
+                        ➕ Ajouter une boisson
+                    </button>
+                </div>
             </div>
 
             <!-- Stats -->
@@ -223,7 +347,6 @@
                     </table>
                 </div>
             </div>
-        </div>
 
             <!-- PIN Change Card -->
             <div class="table-container" style="margin-top: 2rem;">
@@ -313,6 +436,35 @@
                     </div>
                 </div>
 
+                <!-- Icon picker -->
+                <div class="form-group">
+                    <label class="form-label">Icône / Logo <span style="color:var(--text-secondary);font-weight:400;">(optionnel)</span></label>
+                    <div class="icon-picker">
+                        <div class="icon-tabs">
+                            <button type="button" class="icon-tab active" onclick="switchIconTab('emoji')">🎨 Emoji</button>
+                            <button type="button" class="icon-tab" onclick="switchIconTab('image')">🖼 Image de marque</button>
+                        </div>
+
+                        <div class="icon-panel active" id="icon-panel-emoji">
+                            <div class="emoji-grid" id="emoji-grid"></div>
+                        </div>
+
+                        <div class="icon-panel" id="icon-panel-image">
+                            <div class="upload-zone" id="upload-zone" onclick="document.getElementById('logo-file-input').click()">
+                                <input type="file" id="logo-file-input" accept="image/*" onchange="handleLogoUpload(event)">
+                                <div id="upload-label">📁 Cliquez pour choisir une image<br><small style="opacity:0.6;">PNG, JPG, WebP, SVG</small></div>
+                            </div>
+                        </div>
+
+                        <div class="icon-preview-row">
+                            <div class="icon-preview-box" id="icon-preview-box">?</div>
+                            <span class="icon-preview-label" id="icon-preview-label">Aucune icône sélectionnée</span>
+                            <button type="button" class="icon-clear-btn" onclick="clearIcon()">✕ Effacer</button>
+                        </div>
+                    </div>
+                    <input type="hidden" id="drink-icon">
+                </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn" style="background: var(--border-color);"
                         onclick="closeModal()">Annuler</button>
@@ -337,6 +489,45 @@
                 <button class="btn" style="background: var(--border-color);"
                     onclick="closeDeleteModal()">Annuler</button>
                 <button class="btn btn-danger" id="confirm-delete-btn">Supprimer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Z History Modal -->
+    <div class="modal-overlay" id="z-modal" onclick="if(event.target===this)closeZModal()">
+        <div class="modal" style="max-width:820px; width:95%;">
+            <div class="modal-header">
+                <h3>📋 Historique des Z de caisse</h3>
+                <button class="modal-close" onclick="closeZModal()">&times;</button>
+            </div>
+            <!-- Filtres -->
+            <div style="padding:0 1.5rem 1rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                <span style="color:var(--text-muted);font-size:0.85rem;margin-right:0.25rem;">Année :</span>
+                <div id="z-year-filters" style="display:flex;gap:0.4rem;flex-wrap:wrap;"></div>
+                <span style="color:var(--text-muted);font-size:0.85rem;margin-left:0.75rem;margin-right:0.25rem;">Mois :</span>
+                <div id="z-month-filters" style="display:flex;gap:0.4rem;flex-wrap:wrap;"></div>
+            </div>
+            <div style="max-height:55vh; overflow-y:auto;">
+                <table class="admin-table" style="width:100%;">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Date de clôture</th>
+                            <th>Tickets</th>
+                            <th>CA Total</th>
+                            <th>Détail paiement</th>
+                        </tr>
+                    </thead>
+                    <tbody id="z-history-body">
+                        <tr><td colspan="5" style="text-align:center;padding:2rem;">
+                            <div class="loading-spinner" style="margin:0 auto;"></div>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center;">
+                <span id="z-filter-summary" style="color:var(--text-muted);font-size:0.85rem;"></span>
+                <button class="btn" style="background:var(--border-color);" onclick="closeZModal()">Fermer</button>
             </div>
         </div>
     </div>

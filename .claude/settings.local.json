@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /c/ai/Traders/*.db)",
+      "Bash(python app.py)",
+      "Bash(tasklist)",
+      "Bash(findstr /i python)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/wall)",
+      "Bash(curl -s http://localhost:5000/caisse)",
+      "Bash(curl -s http://localhost:5000/api/drinks)",
+      "Bash(python -c \":*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

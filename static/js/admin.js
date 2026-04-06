@@ -11,6 +11,16 @@ let drinks = {};
 let allDrinks = [];
 let editingDrinkId = null;
 
+// Icon picker state
+const DRINK_EMOJIS = [
+    '🍺','🍻','🥂','🍷','🥃','🍸','🍹','🧉',
+    '🥤','🧃','☕','🍵','🧋','🫖','🍶','🥛',
+    '🍾','🫗','🌊','🫧','🍫','🍬','🍭','🍦',
+    '🌴','🌺','🌸','🍋','🍊','🍓','🍒','🍍',
+    '⭐','💎','🔥','❄️','🎯','🎰','🎲','♠️',
+];
+let selectedIcon = null; // emoji string or image URL
+
 // DOM Elements
 const timerValueEl = document.getElementById('timer-value');
 const timerEl = document.getElementById('timer');
@@ -107,6 +117,82 @@ function updateStats() {
         });
 }
 
+// ==================== ICON PICKER ====================
+
+function buildEmojiGrid() {
+    const grid = document.getElementById('emoji-grid');
+    if (!grid) return;
+    grid.innerHTML = DRINK_EMOJIS.map(e =>
+        `<button type="button" class="emoji-btn" data-emoji="${e}" onclick="selectEmoji('${e}')">${e}</button>`
+    ).join('');
+}
+
+function selectEmoji(emoji) {
+    selectedIcon = emoji;
+    document.getElementById('drink-icon').value = emoji;
+    updateIconPreview();
+    // Highlight selected
+    document.querySelectorAll('.emoji-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.emoji === emoji);
+    });
+}
+
+function switchIconTab(tab) {
+    document.querySelectorAll('.icon-tab').forEach((t, i) => {
+        t.classList.toggle('active', (i === 0 && tab === 'emoji') || (i === 1 && tab === 'image'));
+    });
+    document.getElementById('icon-panel-emoji').classList.toggle('active', tab === 'emoji');
+    document.getElementById('icon-panel-image').classList.toggle('active', tab === 'image');
+}
+
+function updateIconPreview() {
+    const box = document.getElementById('icon-preview-box');
+    const label = document.getElementById('icon-preview-label');
+    if (!selectedIcon) {
+        box.textContent = '?';
+        if (label) label.textContent = 'Aucune icône sélectionnée';
+        return;
+    }
+    if (selectedIcon.startsWith('/') || selectedIcon.startsWith('http')) {
+        box.innerHTML = `<img src="${selectedIcon}" alt="logo">`;
+        if (label) label.textContent = 'Image uploadée';
+    } else {
+        box.textContent = selectedIcon;
+        if (label) label.textContent = `Emoji sélectionné : ${selectedIcon}`;
+    }
+}
+
+function clearIcon() {
+    selectedIcon = null;
+    document.getElementById('drink-icon').value = '';
+    document.getElementById('icon-preview-box').textContent = '?';
+    const label = document.getElementById('icon-preview-label');
+    if (label) label.textContent = 'Aucune icône sélectionnée';
+    document.getElementById('upload-label').innerHTML = '📁 Cliquez pour choisir une image<br><small style="opacity:0.6;">PNG, JPG, WebP, SVG</small>';
+    document.getElementById('logo-file-input').value = '';
+    document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+}
+
+async function handleLogoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        const res = await fetch('/api/drinks/upload-logo', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erreur upload');
+        selectedIcon = data.url;
+        document.getElementById('drink-icon').value = data.url;
+        document.getElementById('upload-label').textContent = `✅ ${file.name}`;
+        updateIconPreview();
+        // Deselect any emoji
+        document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
 // ==================== RENDER TABLE ====================
 
 function renderTable() {
@@ -123,9 +209,18 @@ function renderTable() {
         return;
     }
 
-    tbody.innerHTML = allDrinks.map(drink => `
+    tbody.innerHTML = allDrinks.map(drink => {
+        let iconHtml = '';
+        if (drink.icon) {
+            if (drink.icon.startsWith('/') || drink.icon.startsWith('http')) {
+                iconHtml = `<img src="${drink.icon}" alt="" style="width:28px;height:28px;object-fit:contain;vertical-align:middle;margin-right:6px;border-radius:4px;">`;
+            } else {
+                iconHtml = `<span style="font-size:1.3rem;margin-right:6px;vertical-align:middle;">${drink.icon}</span>`;
+            }
+        }
+        return `
         <tr>
-            <td><strong>${drink.name}</strong></td>
+            <td><strong>${iconHtml}${drink.name}</strong></td>
             <td>
                 <span class="drink-type-badge ${drink.type.toLowerCase()}">${drink.type}</span>
             </td>
@@ -145,7 +240,8 @@ function renderTable() {
                 </button>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // ==================== MODAL HANDLERS ====================
@@ -156,6 +252,8 @@ function openAddModal() {
     document.getElementById('modal-submit-btn').textContent = 'Ajouter';
     document.getElementById('drink-form').reset();
     document.getElementById('drink-id').value = '';
+    clearIcon();
+    switchIconTab('emoji');
     document.getElementById('drink-modal').classList.add('active');
 }
 
@@ -174,6 +272,25 @@ function openEditModal(drinkId) {
     document.getElementById('drink-price-max').value = drink.price_max;
     document.getElementById('drink-price-krash').value = drink.price_krash;
     document.getElementById('drink-tva').value = drink.tva;
+
+    // Restore icon
+    clearIcon();
+    if (drink.icon) {
+        selectedIcon = drink.icon;
+        document.getElementById('drink-icon').value = drink.icon;
+        updateIconPreview();
+        if (drink.icon.startsWith('/') || drink.icon.startsWith('http')) {
+            switchIconTab('image');
+            document.getElementById('upload-label').textContent = '✅ Logo existant';
+        } else {
+            switchIconTab('emoji');
+            document.querySelectorAll('.emoji-btn').forEach(b => {
+                b.classList.toggle('selected', b.dataset.emoji === drink.icon);
+            });
+        }
+    } else {
+        switchIconTab('emoji');
+    }
 
     document.getElementById('drink-modal').classList.add('active');
 }
@@ -204,7 +321,8 @@ document.getElementById('drink-form').addEventListener('submit', async (e) => {
         price_min: parseFloat(document.getElementById('drink-price-min').value),
         price_max: parseFloat(document.getElementById('drink-price-max').value),
         price_krash: parseFloat(document.getElementById('drink-price-krash').value),
-        tva: parseFloat(document.getElementById('drink-tva').value) || 20
+        tva: parseFloat(document.getElementById('drink-tva').value) || 20,
+        icon: document.getElementById('drink-icon').value || null
     };
 
     // Validate
@@ -340,8 +458,133 @@ async function changePin() {
     }
 }
 
+// ==================== Z HISTORY MODAL ====================
+
+var zAllSessions = [];
+var zFilterYear = null;
+var zFilterMonth = null;
+var MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+function openZModal() {
+    document.getElementById('z-modal').classList.add('active');
+    zFilterYear = null;
+    zFilterMonth = null;
+    loadZHistory();
+}
+
+function closeZModal() {
+    document.getElementById('z-modal').classList.remove('active');
+}
+
+function loadZHistory() {
+    var tbody = document.getElementById('z-history-body');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;"><div class="loading-spinner" style="margin:0 auto;"></div></td></tr>';
+
+    fetch('/api/sessions')
+        .then(function(res) {
+            if (!res.ok) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#ff5252;padding:2rem;">Erreur ' + res.status + '</td></tr>';
+                return;
+            }
+            return res.json();
+        })
+        .then(function(sessions) {
+            if (!sessions || !sessions.length) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem;">Aucun Z enregistré</td></tr>';
+                document.getElementById('z-year-filters').innerHTML = '';
+                document.getElementById('z-month-filters').innerHTML = '';
+                return;
+            }
+            zAllSessions = sessions;
+            buildZFilters();
+            renderZTable();
+        })
+        .catch(function(err) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#ff5252;padding:2rem;">Erreur: ' + err.message + '</td></tr>';
+        });
+}
+
+function buildZFilters() {
+    var years = {}, months = {};
+    zAllSessions.forEach(function(s) {
+        var d = new Date(s.closed_at + 'Z');
+        years[d.getFullYear()] = true;
+        months[d.getMonth()] = true;
+    });
+
+    // Year buttons
+    var yearHtml = '<button class="z-filter-btn' + (zFilterYear === null ? ' active' : '') + '" onclick="setZFilter(\'year\', null)">Tout</button>';
+    Object.keys(years).sort().reverse().forEach(function(y) {
+        yearHtml += '<button class="z-filter-btn' + (zFilterYear == y ? ' active' : '') + '" onclick="setZFilter(\'year\', ' + y + ')">' + y + '</button>';
+    });
+    document.getElementById('z-year-filters').innerHTML = yearHtml;
+
+    // Month buttons
+    var monthHtml = '<button class="z-filter-btn' + (zFilterMonth === null ? ' active' : '') + '" onclick="setZFilter(\'month\', null)">Tout</button>';
+    Object.keys(months).sort(function(a,b){return a-b;}).forEach(function(m) {
+        monthHtml += '<button class="z-filter-btn' + (zFilterMonth == m ? ' active' : '') + '" onclick="setZFilter(\'month\', ' + m + ')">' + MONTHS_FR[m] + '</button>';
+    });
+    document.getElementById('z-month-filters').innerHTML = monthHtml;
+}
+
+function setZFilter(type, value) {
+    if (type === 'year') zFilterYear = value;
+    if (type === 'month') zFilterMonth = value;
+    buildZFilters();
+    renderZTable();
+}
+
+function renderZTable() {
+    var tbody = document.getElementById('z-history-body');
+    var filtered = zAllSessions.filter(function(s) {
+        var d = new Date(s.closed_at + 'Z');
+        if (zFilterYear !== null && d.getFullYear() != zFilterYear) return false;
+        if (zFilterMonth !== null && d.getMonth() != zFilterMonth) return false;
+        return true;
+    });
+
+    if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem;">Aucun Z pour cette période</td></tr>';
+        document.getElementById('z-filter-summary').textContent = '0 résultat';
+        return;
+    }
+
+    var totalCA = filtered.reduce(function(sum, s) { return sum + s.total_revenue; }, 0);
+    document.getElementById('z-filter-summary').innerHTML = filtered.length + ' Z &nbsp;|&nbsp; CA total : <strong style="color:var(--green-bright)">' + totalCA.toFixed(2) + '€</strong>';
+
+    var html = '';
+    for (var i = 0; i < filtered.length; i++) {
+        var s = filtered[i];
+        var idx = zAllSessions.indexOf(s);
+        var d = new Date(s.closed_at + 'Z');
+        var dateStr = d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+
+        var breakdownHtml = '—';
+        try {
+            var bd = JSON.parse(s.breakdown_json);
+            var methods = bd.methods || [];
+            var parts = [];
+            for (var j = 0; j < methods.length; j++) {
+                parts.push(methods[j].payment_method + ': <strong>' + parseFloat(methods[j].revenue).toFixed(2) + '€</strong>');
+            }
+            if (parts.length) breakdownHtml = parts.join(' | ');
+        } catch(e) {}
+
+        var num = 'Z' + String(zAllSessions.length - idx).padStart(3, '0');
+        html += '<tr>'
+            + '<td style="font-family:var(--font-mono);color:var(--text-muted);">' + num + '</td>'
+            + '<td>' + dateStr + '</td>'
+            + '<td style="font-family:var(--font-mono);">' + s.total_tickets + '</td>'
+            + '<td style="font-family:var(--font-mono);color:var(--green-bright);font-weight:700;">' + parseFloat(s.total_revenue).toFixed(2) + '€</td>'
+            + '<td style="font-size:0.85rem;">' + breakdownHtml + '</td>'
+            + '</tr>';
+    }
+    tbody.innerHTML = html;
+}
+
 // ==================== INIT ====================
 
 document.addEventListener('DOMContentLoaded', () => {
+    buildEmojiGrid();
     loadDrinks();
 });
