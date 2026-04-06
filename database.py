@@ -28,9 +28,15 @@ def init_db():
             price_previous REAL DEFAULT NULL,
             tva REAL NOT NULL DEFAULT 20.0,
             active INTEGER DEFAULT 1,
+            icon TEXT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    # Add icon column to existing databases
+    try:
+        cursor.execute('ALTER TABLE drinks ADD COLUMN icon TEXT DEFAULT NULL')
+    except sqlite3.OperationalError:
+        pass
     
     # Table Ventes
     cursor.execute('''
@@ -259,35 +265,35 @@ def update_all_prices(krash_mode=False):
 
     return updated_drinks
 
-def add_drink(name, drink_type, price_min, price_max, price_krash, tva=20.0):
+def add_drink(name, drink_type, price_min, price_max, price_krash, tva=20.0, icon=None):
     """Add a new drink"""
     conn = get_db()
     cursor = conn.cursor()
-    
+
     # Round to nearest 0.10€
     initial_price = round(random.uniform(price_min, price_max) * 10) / 10
-    
+
     cursor.execute('''
-        INSERT INTO drinks (name, type, price_min, price_max, price_krash, price_current, tva)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (name, drink_type, price_min, price_max, price_krash, initial_price, tva))
-    
+        INSERT INTO drinks (name, type, price_min, price_max, price_krash, price_current, tva, icon)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (name, drink_type, price_min, price_max, price_krash, initial_price, tva, icon))
+
     drink_id = cursor.lastrowid
     conn.commit()
     conn.close()
-    
+
     return drink_id
 
-def update_drink(drink_id, name, drink_type, price_min, price_max, price_krash, tva):
+def update_drink(drink_id, name, drink_type, price_min, price_max, price_krash, tva, icon=None):
     """Update drink details"""
     conn = get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute('''
-        UPDATE drinks SET name = ?, type = ?, price_min = ?, price_max = ?, price_krash = ?, tva = ?
+        UPDATE drinks SET name = ?, type = ?, price_min = ?, price_max = ?, price_krash = ?, tva = ?, icon = ?
         WHERE id = ?
-    ''', (name, drink_type, price_min, price_max, price_krash, tva, drink_id))
-    
+    ''', (name, drink_type, price_min, price_max, price_krash, tva, icon, drink_id))
+
     conn.commit()
     conn.close()
 

@@ -2,6 +2,7 @@ import eventlet
 eventlet.monkey_patch()
 
 import os
+import uuid
 import functools
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from flask_socketio import SocketIO, emit
@@ -98,6 +99,27 @@ def api_get_drink(drink_id):
         return jsonify(drink)
     return jsonify({'error': 'Drink not found'}), 404
 
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'}
+LOGOS_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'images', 'logos')
+
+def _allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/api/drinks/upload-logo', methods=['POST'])
+@login_required
+def api_upload_logo():
+    """Upload a drink logo image"""
+    if 'file' not in request.files:
+        return jsonify({'error': 'Aucun fichier fourni'}), 400
+    f = request.files['file']
+    if not f.filename or not _allowed_file(f.filename):
+        return jsonify({'error': 'Format non supporté (png, jpg, gif, webp, svg)'}), 400
+    ext = f.filename.rsplit('.', 1)[1].lower()
+    filename = f'{uuid.uuid4().hex}.{ext}'
+    os.makedirs(LOGOS_FOLDER, exist_ok=True)
+    f.save(os.path.join(LOGOS_FOLDER, filename))
+    return jsonify({'url': f'/static/images/logos/{filename}'})
+
 @app.route('/api/drinks', methods=['POST'])
 @login_required
 def api_add_drink():
@@ -112,6 +134,7 @@ def api_add_drink():
         price_max = float(data['price_max'])
         price_krash = float(data['price_krash'])
         tva = float(data.get('tva', 20.0))
+        icon = data.get('icon') or None
 
         if price_min <= 0 or price_max <= 0 or price_krash <= 0:
             return jsonify({'error': 'Les prix doivent être supérieurs à 0'}), 400
@@ -126,7 +149,8 @@ def api_add_drink():
             price_min=price_min,
             price_max=price_max,
             price_krash=price_krash,
-            tva=tva
+            tva=tva,
+            icon=icon
         )
         return jsonify({'id': drink_id, 'success': True})
     except (KeyError, TypeError, ValueError) as e:
@@ -146,6 +170,7 @@ def api_update_drink(drink_id):
         price_max = float(data['price_max'])
         price_krash = float(data['price_krash'])
         tva = float(data.get('tva', 20.0))
+        icon = data.get('icon') or None
 
         if price_min <= 0 or price_max <= 0 or price_krash <= 0:
             return jsonify({'error': 'Les prix doivent être supérieurs à 0'}), 400
@@ -161,7 +186,8 @@ def api_update_drink(drink_id):
             price_min=price_min,
             price_max=price_max,
             price_krash=price_krash,
-            tva=tva
+            tva=tva,
+            icon=icon
         )
         return jsonify({'success': True})
     except (KeyError, TypeError, ValueError) as e:

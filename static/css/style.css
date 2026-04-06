@@ -817,9 +817,13 @@ h1, h2, h3, h4, h5, h6 {
     padding: var(--spacing-xl);
     max-width: 500px;
     width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
     border: 1px solid var(--border-color);
     animation: modal-in 0.3s ease;
+    scrollbar-width: none;
 }
+.modal::-webkit-scrollbar { display: none; }
 
 @keyframes modal-in {
     from {
