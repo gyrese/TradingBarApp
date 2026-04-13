@@ -1,6 +1,6 @@
 import sqlite3
 from datetime import datetime
-from config import DATABASE_FILE, DEFAULT_DRINKS
+from config import DATABASE_FILE, DEFAULT_DRINKS, DEFAULT_DRINK_TYPES
 import random
 
 def get_db():
@@ -143,12 +143,7 @@ def init_db():
     # Insert default types if none exist
     cursor.execute('SELECT COUNT(*) FROM drink_types')
     if cursor.fetchone()[0] == 0:
-        default_types = [
-            ('Bière', '🍺', 1),
-            ('Soft', '🥤', 2),
-            ('Cocktail', '🍹', 3)
-        ]
-        for name, icon, order in default_types:
+        for name, icon, order in DEFAULT_DRINK_TYPES:
             cursor.execute('INSERT INTO drink_types (name, icon, display_order) VALUES (?, ?, ?)',
                           (name, icon, order))
         conn.commit()
