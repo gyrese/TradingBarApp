@@ -16,9 +16,20 @@ from price_engine import PriceEngine
 from config import PRICE_UPDATE_INTERVAL, KRASH_DURATION
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24).hex())
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+_secret = os.environ.get('SECRET_KEY')
+if not _secret:
+    import warnings
+    warnings.warn(
+        "SECRET_KEY non définie — sessions invalidées au redémarrage. "
+        "Définir la variable d'environnement SECRET_KEY en production.",
+        RuntimeWarning, stacklevel=1
+    )
+    _secret = os.urandom(24).hex()
+app.config['SECRET_KEY'] = _secret
+
+_cors_origins = os.environ.get('CORS_ORIGINS', '*')
+socketio = SocketIO(app, cors_allowed_origins=_cors_origins, async_mode='eventlet')
 
 # Initialize price engine
 price_engine = None
@@ -48,7 +59,9 @@ def login():
         stored_pin = get_setting('access_pin', '1234')
         if pin == stored_pin:
             session['authenticated'] = True
-            next_url = request.args.get('next') or url_for('caisse')
+            next_url = request.args.get('next') or ''
+            if not next_url.startswith('/'):
+                next_url = url_for('caisse')
             return redirect(next_url)
         error = 'Code PIN incorrect'
     return render_template('login.html', error=error)

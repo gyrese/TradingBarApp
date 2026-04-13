@@ -1155,6 +1155,7 @@
         let drinks = {};
         let krashActive = false;
         let cart = []; // { drink_id, drink_name, price, quantity, emoji }
+        let ticketOpen = false; // true dès qu'un article est dans le panier — gèle l'affichage des prix
         let selectedPayment = 'Espèces';
         let activeCategory = 'all';
         let categoryConfig = {};
@@ -1214,7 +1215,10 @@
 
         socket.on('prices_update', (data) => {
             drinks = data.drinks;
-            renderDrinks();
+            // Ne pas re-rendre les boutons si un ticket est en cours — les prix restent figés
+            if (!ticketOpen) {
+                renderDrinks();
+            }
 
             if (data.event === 'krash_started') {
                 krashActive = true;
@@ -1441,6 +1445,10 @@
 
         // ==================== CART ====================
         function addToCart(drinkId, drinkName, price, emoji) {
+            // Geler les prix à l'ouverture du ticket (premier article)
+            if (cart.length === 0) {
+                ticketOpen = true;
+            }
             // Check if already in cart - prix figé au premier ajout
             const existing = cart.find(item => item.drink_id === drinkId);
             if (existing) {
@@ -1481,6 +1489,8 @@
 
         function clearCart() {
             cart = [];
+            ticketOpen = false;
+            renderDrinks(); // Dégeler — afficher les prix actuels du serveur
             renderCart();
         }
 
@@ -1578,8 +1588,10 @@
                 const payEmoji = selectedPayment === 'CB' ? '💳' : (selectedPayment === 'Espèces' ? '💵' : '🔄');
                 showToast(`${payEmoji} Ticket #${data.id} validé • ${data.total.toFixed(2)}€ (${selectedPayment})`, 'success');
 
-                // Clear cart
+                // Clear cart — dégeler les prix
                 cart = [];
+                ticketOpen = false;
+                renderDrinks();
                 renderCart();
 
                 // Refresh sales

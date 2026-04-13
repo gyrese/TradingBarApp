@@ -6,8 +6,9 @@ PRICE_UPDATE_INTERVAL = 90
 # Krash duration in seconds (5 minutes by default)
 KRASH_DURATION = 300
 
-# Database file
-DATABASE_FILE = 'bar_traders.db'
+# Database file — chemin absolu pour éviter les ambiguïtés selon le CWD de lancement
+import os as _os
+DATABASE_FILE = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'bar_traders.db')
 
 # Default drinks data
 DEFAULT_DRINKS = [
