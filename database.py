@@ -279,6 +279,7 @@ def update_all_prices(krash_mode=False):
                 'id': drink['id'],
                 'name': drink['name'],
                 'type': drink['type'],
+                'icon': drink['icon'],
                 'price_current': new_price,
                 'price_previous': old_price,
                 'price_min': drink['price_min'],
