@@ -699,65 +699,18 @@
         let krashActive = false;
         let categoryConfig = {};
 
-        // Emoji map for individual drinks
-        const drinkEmojis = {
-            // Bières
-            'heineken': '🍺', 'corona': '🍺', 'leffe': '🍺', 'leffe blonde': '🍺',
-            'desperados': '🍺', 'guinness': '🍫', '1664': '🍺', 'kronenbourg': '🍺',
-            'stella': '🍺', 'budweiser': '🍺', 'carlsberg': '🍺', 'hoegaarden': '🍺',
-            'affligem': '🍺', 'grimbergen': '🍺', 'chouffe': '🍺', 'duvel': '🍺',
-            // Softs
-            'coca-cola': '🥤', 'coca cola': '🥤', 'coca': '🥤', 'orangina': '🍊',
-            'perrier': '💧', 'red bull': '⚡', 'ice tea': '🧊', 'sprite': '🥤',
-            'fanta': '🍊', 'schweppes': '🫧', 'limonade': '🍋', 'jus': '🧃',
-            // Cocktails
-            'mojito': '🍸', 'piña colada': '🍹', 'pina colada': '🍹', 'margarita': '🍸',
-            'sex on beach': '🏖️', 'sex on the beach': '🏖️', 'cuba libre': '🍹',
-            'tequila sunrise': '🌅', 'long island': '🍹', 'caipirinha': '🍸',
-            'cosmopolitan': '🍸', 'daiquiri': '🍸', 'gin tonic': '🍸',
-            'whisky sour': '🥃', 'old fashioned': '🥃', 'negroni': '🍸',
-            // Shots
-            'tequila': '🥃', 'vodka': '🥃', 'whisky': '🥃', 'rhum': '🥃',
-            'jagermeister': '🥃', 'sambuca': '🥃', 'malibu': '🥥',
-            // Vins
-            'vin rouge': '🍷', 'vin blanc': '🥂', 'rosé': '🍷', 'champagne': '🥂'
-        };
 
-        const drinkLogos = {
-            'desperados': '/static/images/logos/desperados.png',
-            'heineken': '/static/images/logos/heineken.png',
-            'guinness': '/static/images/logos/guinness.png',
-            'orangina': '/static/images/logos/orangina.png',
-            'perrier': '/static/images/logos/perrier.png',
-            'chipek': '/static/images/logos/chipek.png',
-            'grim': '/static/images/logos/grimbergen.png',
-            'phoenix': '/static/images/logos/phoenix.png',
-            'slash': '/static/images/logos/slash.png'
-        };
-
-        function getDrinkEmoji(name, type) {
-            const lower = name.toLowerCase();
-            
-            // Brand Logo Match
-            for (const [key, logoPath] of Object.entries(drinkLogos)) {
-                if (lower.includes(key)) {
-                    // Returns an image absolutely positioned to force it to fill and crop inside the flex container
-                    return `<img src="${logoPath}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block;">`;
+        function getDrinkIcon(drink) {
+            const icon = drink.icon;
+            // 1. Icône définie sur la boisson (image URL ou emoji)
+            if (icon && icon.trim()) {
+                if (icon.startsWith('/') || icon.startsWith('http')) {
+                    return `<img src="${icon}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;">`;
                 }
+                return icon;
             }
-            
-            // Exact Emoji match
-            if (drinkEmojis[lower]) return drinkEmojis[lower];
-            // Partial Emoji match
-            for (const [key, emoji] of Object.entries(drinkEmojis)) {
-                if (lower.includes(key) || key.includes(lower)) return emoji;
-            }
-            // Fallback by type
-            const typeEmojis = {
-                'Bière': '🍺', 'Soft': '🥤', 'Cocktail': '🍹',
-                'Shot': '🥃', 'Vin': '🍷', 'Spiritueux': '🥃'
-            };
-            return typeEmojis[type] || '🍷';
+            // 2. Fallback : icône du type de boisson
+            return categoryConfig[drink.type]?.icon || '🍷';
         }
 
         const timerValue = document.getElementById('timer-value');
@@ -1061,13 +1014,13 @@
             const priceClass = animate ? 'price-updating' : '';
             const trend = isDown ? 'down' : (isUp ? 'up' : 'neutral');
             const sparklineSVG = generateSparklineSVG(drink.id, trend);
-            const emoji = getDrinkEmoji(drink.name, drink.type);
+            const iconContent = getDrinkIcon(drink);
             const delay = index * 0.05;
 
             return `
                 <div class="${cardClass}" style="animation-delay: ${delay}s;">
                     <div class="drink-icon-wrap">
-                        <span>${emoji}</span>
+                        <span>${iconContent}</span>
                     </div>
                     <div class="drink-info">
                         <div class="drink-name" title="${drink.name}">${drink.name}</div>
