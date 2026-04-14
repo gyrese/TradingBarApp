@@ -725,16 +725,36 @@
         }, { once: false });
 
 
+        // Logos de marques par mot-clé dans le nom de la boisson
+        const drinkLogos = {
+            'desperados': '/static/images/logos/desperados.png',
+            'heineken':   '/static/images/logos/heineken.png',
+            'guinness':   '/static/images/logos/guinness.png',
+            'orangina':   '/static/images/logos/orangina.png',
+            'perrier':    '/static/images/logos/perrier.png',
+            'chipek':     '/static/images/logos/chipek.png',
+            'grim':       '/static/images/logos/grimbergen.png',
+            'phoenix':    '/static/images/logos/phoenix.png',
+            'slash':      '/static/images/logos/slash.png',
+        };
+
         function getDrinkIcon(drink) {
             const icon = drink.icon;
-            // 1. Icône définie sur la boisson (image URL ou emoji)
+            // 1. Icône définie manuellement sur la boisson (image URL ou emoji)
             if (icon && icon.trim()) {
                 if (icon.startsWith('/') || icon.startsWith('http')) {
                     return `<img src="${icon}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;">`;
                 }
                 return icon;
             }
-            // 2. Fallback : icône du type de boisson
+            // 2. Logo de marque par nom
+            const lower = drink.name.toLowerCase();
+            for (const [key, path] of Object.entries(drinkLogos)) {
+                if (lower.includes(key)) {
+                    return `<img src="${path}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;">`;
+                }
+            }
+            // 3. Icône du type de boisson
             return categoryConfig[drink.type]?.icon || '🍷';
         }
 
