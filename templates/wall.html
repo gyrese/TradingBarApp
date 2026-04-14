@@ -699,6 +699,31 @@
         let krashActive = false;
         let categoryConfig = {};
 
+        // Emojis par nom de boisson (fallback sur le type si absent)
+        const drinkEmojis = {
+            'bière': '🍺', 'pression': '🍺', 'blonde': '🍺', 'brune': '🍺', 'ambrée': '🍺',
+            'coca': '🥤', 'cola': '🥤', 'pepsi': '🥤', 'fanta': '🥤', 'sprite': '🥤',
+            'eau': '💧', 'perrier': '💧', 'badoit': '💧',
+            'vin': '🍷', 'rouge': '🍷', 'blanc': '🍷', 'rosé': '🍷',
+            'champagne': '🥂', 'prosecco': '🥂', 'mousseux': '🥂',
+            'mojito': '🍹', 'cocktail': '🍹', 'margarita': '🍹', 'sangria': '🍹',
+            'shot': '🥃', 'whisky': '🥃', 'whiskey': '🥃', 'vodka': '🥃',
+            'rhum': '🥃', 'tequila': '🥃', 'gin': '🥃', 'cognac': '🥃',
+            'café': '☕', 'expresso': '☕', 'cappuccino': '☕',
+            'jus': '🧃', 'orange': '🧃', 'pomme': '🧃',
+        };
+
+        // AudioContext persistant pour la sirène (initialisé au premier geste utilisateur)
+        let audioCtx = null;
+        document.addEventListener('click', () => {
+            if (!audioCtx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (AC) audioCtx = new AC();
+            } else if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }, { once: false });
+
 
         function getDrinkIcon(drink) {
             const icon = drink.icon;
@@ -763,6 +788,7 @@
             if (data.event === 'krash_started') {
                 krashActive = true;
                 showKrashBanner();
+                playSiren();
             } else if (data.event === 'krash_ended') {
                 krashActive = false;
                 hideKrashBanner();
@@ -774,9 +800,7 @@
             if (data.krash_active) {
                 krashActive = true;
                 updateKrashTimer(data.krash_remaining);
-                showKrashBanner(false);
-            } else if (data.krash_pending) {
-                showKrashBanner(true);
+                showKrashBanner();
             } else if (krashActive) {
                 krashActive = false;
                 hideKrashBanner();
@@ -792,9 +816,7 @@
         socket.on('krash', (data) => {
             if (data.active) {
                 krashActive = true;
-                showKrashBanner(false);
-            } else if (data.pending) {
-                showKrashBanner(true);
+                showKrashBanner();
             } else {
                 krashActive = false;
                 hideKrashBanner();
@@ -808,20 +830,58 @@
             else if (seconds <= 20) timerValue.classList.add('warning');
         }
 
-        function showKrashBanner(pending = false) {
+        function showKrashBanner() {
             const title = document.getElementById('krash-banner-title');
             const sub = document.getElementById('krash-banner-sub');
-            if (pending) {
-                title.textContent = '⏳ KRASH AU PROCHAIN CYCLE…';
-                if (sub) sub.style.display = 'none';
-                krashBanner.style.background = 'linear-gradient(135deg, #5a3a00, #3a2800)';
-            } else {
-                title.textContent = '⚡ KRASH BOURSIER EN COURS ⚡';
-                if (sub) sub.style.display = '';
-                krashBanner.style.background = '';
-            }
+            title.textContent = '⚡ KRASH BOURSIER EN COURS ⚡';
+            if (sub) sub.style.display = '';
+            krashBanner.style.background = '';
             krashBanner.classList.add('active');
             mainContent.classList.add('with-krash');
+        }
+
+        function playSiren() {
+            try {
+                // Créer le contexte s'il n'existe pas encore
+                if (!audioCtx) {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    if (!AC) return;
+                    audioCtx = new AC();
+                }
+                // Le débloquer s'il est suspendu (politique autoplay)
+                const play = () => {
+                    const ctx = audioCtx;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.type = 'sawtooth';
+
+                    const start = ctx.currentTime;
+                    const wail = 0.7;
+                    const count = 5;
+                    for (let i = 0; i < count; i++) {
+                        const t = start + i * wail;
+                        osc.frequency.setValueAtTime(480, t);
+                        osc.frequency.linearRampToValueAtTime(920, t + wail * 0.5);
+                        osc.frequency.linearRampToValueAtTime(480, t + wail);
+                    }
+                    const total = count * wail;
+                    gain.gain.setValueAtTime(0.5, start);
+                    gain.gain.setValueAtTime(0.5, start + total - 0.4);
+                    gain.gain.linearRampToValueAtTime(0, start + total);
+                    osc.start(start);
+                    osc.stop(start + total);
+                };
+
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume().then(play);
+                } else {
+                    play();
+                }
+            } catch (e) {
+                console.log('[Wall] Sirène audio indisponible:', e);
+            }
         }
 
         function hideKrashBanner() {
