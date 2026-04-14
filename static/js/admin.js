@@ -10,6 +10,7 @@ const socket = io();
 let drinks = {};
 let allDrinks = [];
 let editingDrinkId = null;
+let drinkTypes = [];   // [{id, name, icon, display_order}]
 
 // Icon picker state
 const DRINK_EMOJIS = [
@@ -45,7 +46,9 @@ socket.on('timer_update', (data) => {
 
     if (data.krash_active) {
         updateKrashTimer(data.krash_remaining);
-        showKrashBanner();
+        showKrashBanner(false);
+    } else if (data.krash_pending) {
+        showKrashBanner(true);
     } else {
         hideKrashBanner();
     }
@@ -53,9 +56,22 @@ socket.on('timer_update', (data) => {
 
 socket.on('status', (data) => {
     updateTimer(data.timer);
+    if (data.interval) syncIntervalInput(data.interval);
     if (data.krash_active) {
         updateKrashTimer(data.krash_remaining);
-        showKrashBanner();
+        showKrashBanner(false);
+    } else if (data.krash_pending) {
+        showKrashBanner(true);
+    }
+});
+
+socket.on('krash', (data) => {
+    if (data.active) {
+        showKrashBanner(false);
+    } else if (data.pending) {
+        showKrashBanner(true);
+    } else {
+        hideKrashBanner();
     }
 });
 
@@ -75,7 +91,18 @@ function updateTimer(seconds) {
 
 // ==================== KRASH BANNER ====================
 
-function showKrashBanner() {
+function showKrashBanner(pending = false) {
+    const title = document.getElementById('krash-banner-title');
+    const sub = document.getElementById('krash-banner-sub');
+    if (pending) {
+        title.textContent = '⏳ KRASH AU PROCHAIN CYCLE…';
+        if (sub) sub.style.display = 'none';
+        krashBanner.style.background = 'linear-gradient(135deg, #5a3a00, #3a2800)';
+    } else {
+        title.textContent = '🔥 KRASH EN COURS 🔥';
+        if (sub) sub.style.display = '';
+        krashBanner.style.background = '';
+    }
     krashBanner.classList.add('active');
 }
 
@@ -100,14 +127,25 @@ function flattenDrinks() {
 }
 
 function updateStats() {
-    // Count by type
-    const beers = allDrinks.filter(d => d.type === 'Bière').length;
-    const softs = allDrinks.filter(d => d.type === 'Soft').length;
-    const cocktails = allDrinks.filter(d => d.type === 'Cocktail').length;
+    const container = document.getElementById('admin-stats-container');
+    // Rebuild type cards (insert before the sales card which is last)
+    const salesCard = container.querySelector('.stat-card:last-child');
+    // Remove all previous type cards
+    container.querySelectorAll('.stat-card[data-type-card]').forEach(el => el.remove());
 
-    document.getElementById('stat-beers').textContent = beers;
-    document.getElementById('stat-softs').textContent = softs;
-    document.getElementById('stat-cocktails').textContent = cocktails;
+    drinkTypes.forEach(type => {
+        const count = allDrinks.filter(d => d.type === type.name).length;
+        const card = document.createElement('div');
+        card.className = 'stat-card';
+        card.dataset.typeCard = type.name;
+        card.innerHTML = `
+            <div class="stat-icon">${type.icon || '🍹'}</div>
+            <div class="stat-info">
+                <div class="value">${count}</div>
+                <div class="label">${type.name}</div>
+            </div>`;
+        container.insertBefore(card, salesCard);
+    });
 
     // Load sales stats
     fetch('/api/sales')
@@ -254,6 +292,7 @@ function openAddModal() {
     document.getElementById('drink-id').value = '';
     clearIcon();
     switchIconTab('emoji');
+    populateTypeSelect('');
     document.getElementById('drink-modal').classList.add('active');
 }
 
@@ -292,6 +331,7 @@ function openEditModal(drinkId) {
         switchIconTab('emoji');
     }
 
+    populateTypeSelect(drink.type);
     document.getElementById('drink-modal').classList.add('active');
 }
 
@@ -390,6 +430,28 @@ async function deleteDrink(drinkId) {
 
 // ==================== LOAD DATA ====================
 
+async function loadTypes() {
+    try {
+        const res = await fetch('/api/types/list');
+        drinkTypes = await res.json();
+        populateTypeSelect();
+    } catch (e) {
+        console.error('Error loading types:', e);
+    }
+}
+
+function populateTypeSelect(currentValue) {
+    const sel = document.getElementById('drink-type');
+    if (!sel) return;
+    const prev = currentValue !== undefined ? currentValue : sel.value;
+    sel.innerHTML = drinkTypes
+        .map(t => `<option value="${t.name}">${t.icon || ''} ${t.name}</option>`)
+        .join('');
+    if (prev && [...sel.options].some(o => o.value === prev)) {
+        sel.value = prev;
+    }
+}
+
 async function loadDrinks() {
     try {
         const response = await fetch('/api/drinks');
@@ -455,6 +517,64 @@ async function changePin() {
         showToast('Code PIN modifié avec succès', 'success');
     } catch (e) {
         showToast(e.message, 'error');
+    }
+}
+
+// ==================== TYPE MODAL ====================
+
+const TYPE_EMOJIS = [
+    '🍺','🍻','🥂','🍷','🥃','🍸','🍹','🧉',
+    '🥤','🧃','☕','🍵','🧋','🫖','🍶','🥛',
+    '🍾','🫗','🌊','🫧','🔥','❄️','⭐','💎',
+];
+
+function openTypeModal() {
+    document.getElementById('type-name').value = '';
+    document.getElementById('type-icon').value = '🍷';
+    document.getElementById('type-icon-preview').textContent = '🍷';
+
+    const grid = document.getElementById('type-emoji-grid');
+    grid.innerHTML = TYPE_EMOJIS.map(e =>
+        `<button type="button" class="emoji-btn" data-te="${e}" onclick="selectTypeEmoji('${e}')">${e}</button>`
+    ).join('');
+    // Pre-select first
+    selectTypeEmoji('🍷');
+
+    document.getElementById('type-modal').classList.add('active');
+}
+
+function closeTypeModal() {
+    document.getElementById('type-modal').classList.remove('active');
+}
+
+function selectTypeEmoji(emoji) {
+    document.getElementById('type-icon').value = emoji;
+    document.getElementById('type-icon-preview').textContent = emoji;
+    document.querySelectorAll('#type-emoji-grid .emoji-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.te === emoji);
+    });
+}
+
+async function saveType(e) {
+    e.preventDefault();
+    const name = document.getElementById('type-name').value.trim();
+    const icon = document.getElementById('type-icon').value || '🍷';
+    if (!name) return;
+    try {
+        const res = await fetch('/api/types', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, icon })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erreur');
+        closeTypeModal();
+        showToast(`Type "${name}" créé !`, 'success');
+        await loadTypes();
+        // Auto-select the new type in the drink form
+        populateTypeSelect(name);
+    } catch (err) {
+        showToast(err.message, 'error');
     }
 }
 
@@ -582,9 +702,47 @@ function renderZTable() {
     tbody.innerHTML = html;
 }
 
+// ==================== INTERVAL ====================
+
+function syncIntervalInput(seconds) {
+    const input = document.getElementById('interval-input');
+    if (input) input.value = seconds;
+}
+
+async function setInterval_(event) {
+    event.preventDefault();
+    const input = document.getElementById('interval-input');
+    const feedback = document.getElementById('interval-feedback');
+    const seconds = parseInt(input.value, 10);
+    if (isNaN(seconds) || seconds < 10 || seconds > 3600) {
+        input.style.borderColor = '#ff5252';
+        return;
+    }
+    input.style.borderColor = '';
+    const res = await fetch('/api/interval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seconds })
+    });
+    if (res.ok) {
+        feedback.style.display = 'inline';
+        setTimeout(() => { feedback.style.display = 'none'; }, 2000);
+    } else {
+        input.style.borderColor = '#ff5252';
+    }
+}
+
 // ==================== INIT ====================
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     buildEmojiGrid();
-    loadDrinks();
+    loadTypes().then(() => loadDrinks());
+    // Sync interval input with current engine value
+    try {
+        const res = await fetch('/api/status');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.interval) syncIntervalInput(data.interval);
+        }
+    } catch (_) {}
 });

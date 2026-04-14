@@ -37,6 +37,11 @@ def init_db():
         cursor.execute('ALTER TABLE drinks ADD COLUMN icon TEXT DEFAULT NULL')
     except sqlite3.OperationalError:
         pass
+    # Add display_order column to existing databases
+    try:
+        cursor.execute('ALTER TABLE drinks ADD COLUMN display_order INTEGER DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass
     
     # Table Ventes
     cursor.execute('''
@@ -147,6 +152,37 @@ def init_db():
             cursor.execute('INSERT INTO drink_types (name, icon, display_order) VALUES (?, ?, ?)',
                           (name, icon, order))
         conn.commit()
+    else:
+        # Migrate old/plural type names to canonical singular names
+        _renames = [
+            ('Bière',       'Bière'),   # no-op guard
+            ('Bières',      'Bière'),
+            ('Soft',        'Soft'),
+            ('Softs',       'Soft'),
+            ('Cocktail',    'Cocktail'),
+            ('Cocktails',   'Cocktail'),
+            ('Alcool Fort', 'Alcool'),
+            ('Alcools',     'Alcool'),
+            ('Vins',        'Vin'),
+            ('Shoots',      'Shoot'),
+        ]
+        for old, new in _renames:
+            if old != new:
+                cursor.execute('UPDATE drink_types SET name=? WHERE name=?', (new, old))
+                cursor.execute('UPDATE drinks SET type=? WHERE type=?', (new, old))
+        # Distribute "Autres" drinks → proper types, then deactivate it
+        cursor.execute("UPDATE drinks SET type='Vin'    WHERE type='Autres' AND LOWER(name) LIKE '%vin%'")
+        cursor.execute("UPDATE drinks SET type='Shoot'  WHERE type='Autres' AND LOWER(name) LIKE '%shot%'")
+        cursor.execute("UPDATE drinks SET type='Alcool' WHERE type='Autres'")
+        cursor.execute("UPDATE drink_types SET active=0 WHERE name='Autres'")
+        # Ensure Vin and Shoot types exist
+        for name, icon, order in [('Vin', '🍷', 5), ('Shoot', '🥂', 6)]:
+            cursor.execute(
+                'INSERT OR IGNORE INTO drink_types (name, icon, display_order) VALUES (?, ?, ?)',
+                (name, icon, order)
+            )
+            cursor.execute('UPDATE drink_types SET active=1 WHERE name=?', (name,))
+        conn.commit()
     
     # Check if drinks exist
     cursor.execute('SELECT COUNT(*) FROM drinks')
@@ -168,7 +204,7 @@ def get_all_drinks():
     """Get all active drinks"""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM drinks WHERE active = 1 ORDER BY name')
+    cursor.execute('SELECT * FROM drinks WHERE active = 1 ORDER BY display_order, name')
     drinks = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return drinks
@@ -220,7 +256,7 @@ def update_all_prices(krash_mode=False):
     try:
         cursor.execute('BEGIN IMMEDIATE')
 
-        cursor.execute('SELECT * FROM drinks WHERE active = 1')
+        cursor.execute('SELECT * FROM drinks WHERE active = 1 ORDER BY display_order, name')
         drinks = cursor.fetchall()
 
         for drink in drinks:
@@ -610,6 +646,15 @@ def update_drink_type(type_id, name, icon, display_order):
     cursor.execute('''
         UPDATE drink_types SET name = ?, icon = ?, display_order = ? WHERE id = ?
     ''', (name, icon, display_order, type_id))
+    conn.commit()
+    conn.close()
+
+def update_drinks_order(order_list):
+    """Update display_order for a list of drinks. order_list = [{'id': int, 'order': int}, ...]"""
+    conn = get_db()
+    cursor = conn.cursor()
+    for item in order_list:
+        cursor.execute('UPDATE drinks SET display_order = ? WHERE id = ?', (item['order'], item['id']))
     conn.commit()
     conn.close()
 

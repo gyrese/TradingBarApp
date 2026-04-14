@@ -366,6 +366,10 @@
 
         .drink-btn.krash .d-price { color: var(--gold); }
 
+        .reorder-item { position: relative; cursor: grab; user-select: none; touch-action: none; }
+        .reorder-item:active { cursor: grabbing; }
+        .reorder-item.drag-over { border-color: #ffd740 !important; box-shadow: 0 0 16px rgba(255,215,64,0.5) !important; transform: scale(1.04); }
+
         /* Added indicator */
         .drink-btn .added-flash {
             position: absolute;
@@ -988,8 +992,14 @@
     <div class="main-layout">
         <!-- Left: Drinks -->
         <div class="drinks-panel">
-            <div class="category-tabs" id="category-tabs">
-                <!-- Tabs dynamically generated -->
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div class="category-tabs" id="category-tabs" style="flex:1;">
+                    <!-- Tabs dynamically generated -->
+                </div>
+                <button id="reorder-btn" onclick="toggleReorderMode()"
+                    style="flex-shrink:0; padding:8px 12px; border-radius:8px; border:2px solid rgba(255,255,255,0.15); background:transparent; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; white-space:nowrap; transition:all .2s;">
+                    ✦ Trier
+                </button>
             </div>
             <div class="drinks-scroll">
                 <div class="drinks-grid" id="drinks-container">
@@ -1075,7 +1085,7 @@
             </div>
             <div class="modal-body">
                 Êtes-vous sûr de vouloir déclencher le KRASH?<br>
-                Tous les prix tomberont au minimum pendant 5 minutes!
+                Tous les prix tomberont au minimum pendant la durée d'un cycle!
             </div>
             <div class="modal-footer">
                 <button class="btn btn-cancel" onclick="closeModal()">Annuler</button>
@@ -1159,6 +1169,9 @@
         let selectedPayment = 'Espèces';
         let activeCategory = 'all';
         let categoryConfig = {};
+        let reorderMode = false;
+        // drag state
+        let _dragEl = null, _dragGhost = null, _dragStartX = 0, _dragStartY = 0;
 
         // Emoji map
         const drinkEmojis = {
@@ -1337,7 +1350,7 @@
             fetch('/api/krash', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ duration: 300 })
+                body: JSON.stringify({})
             })
             .then(res => { if (res.ok) showToast('🔥 KRASH déclenché!', 'warning'); else throw new Error(); })
             .catch(() => showToast('Erreur lors du déclenchement', 'error'));
@@ -1425,8 +1438,21 @@
                 drinksContainer.innerHTML = allDrinks.map(drink => {
                     const emoji = getDrinkEmoji(drink.name, drink.type || drink.category);
                     const isKrash = krashActive ? 'krash' : '';
-                    const escapedName = drink.name.replace(/'/g, "\\'");
-                    
+                    const escapedName = drink.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                    if (reorderMode) {
+                        return `
+                            <div class="drink-btn ${isKrash} reorder-item"
+                                 data-id="${drink.id}" data-name="${escapedName}"
+                                 data-price="${drink.price_current}" data-emoji="${emoji}">
+                                <div class="added-flash"></div>
+                                <span style="position:absolute;top:4px;right:6px;font-size:1rem;opacity:0.5;">⠿</span>
+                                <span class="d-emoji">${emoji}</span>
+                                <span class="d-name">${drink.name}</span>
+                                <span class="d-price">${drink.price_current.toFixed(2)}€</span>
+                            </div>
+                        `;
+                    }
                     return `
                         <button class="drink-btn ${isKrash}" id="drink-btn-${drink.id}"
                                 onclick="addToCart(${drink.id}, '${escapedName}', ${drink.price_current}, '${emoji}')">
@@ -1437,10 +1463,132 @@
                         </button>
                     `;
                 }).join('');
+
+                if (reorderMode) initReorderListeners();
             } catch (e) {
                 console.error("Error in renderDrinkButtons", e);
                 drinksContainer.innerHTML += `<p style="color:var(--red); padding:20px;">Btn Error: ${e.message}</p>`;
             }
+        }
+
+        // ==================== REORDER MODE ====================
+
+        function toggleReorderMode() {
+            reorderMode = !reorderMode;
+            const btn = document.getElementById('reorder-btn');
+            if (reorderMode) {
+                btn.textContent = '✓ Terminer';
+                btn.style.borderColor = '#ffd740';
+                btn.style.color = '#ffd740';
+            } else {
+                btn.textContent = '✦ Trier';
+                btn.style.borderColor = 'rgba(255,255,255,0.15)';
+                btn.style.color = 'var(--text-secondary)';
+            }
+            renderDrinkButtons();
+        }
+
+        function initReorderListeners() {
+            document.querySelectorAll('.reorder-item').forEach(el => {
+                el.addEventListener('touchstart', reorderTouchStart, { passive: false });
+                el.addEventListener('mousedown', reorderMouseStart);
+            });
+        }
+
+        function reorderTouchStart(e) {
+            e.preventDefault();
+            const t = e.touches[0];
+            _startReorder(this, t.clientX, t.clientY, true);
+        }
+
+        function reorderMouseStart(e) {
+            _startReorder(this, e.clientX, e.clientY, false);
+        }
+
+        function _startReorder(el, cx, cy, isTouch) {
+            _dragEl = el;
+            _dragStartX = cx;
+            _dragStartY = cy;
+
+            // Ghost
+            const rect = el.getBoundingClientRect();
+            _dragGhost = el.cloneNode(true);
+            Object.assign(_dragGhost.style, {
+                position: 'fixed',
+                width: rect.width + 'px',
+                height: rect.height + 'px',
+                left: rect.left + 'px',
+                top: rect.top + 'px',
+                opacity: '0.85',
+                transform: 'scale(1.06) rotate(1.5deg)',
+                zIndex: '9999',
+                pointerEvents: 'none',
+                border: '2px solid #ffd740',
+                borderRadius: '12px',
+                background: 'var(--bg-card)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                transition: 'none'
+            });
+            document.body.appendChild(_dragGhost);
+            el.style.opacity = '0.25';
+
+            if (navigator.vibrate) navigator.vibrate(25);
+
+            const moveEvt = isTouch ? 'touchmove' : 'mousemove';
+            const endEvt  = isTouch ? 'touchend'  : 'mouseup';
+
+            function onMove(ev) {
+                ev.preventDefault();
+                const p = ev.touches ? ev.touches[0] : ev;
+                const dx = p.clientX - _dragStartX;
+                const dy = p.clientY - _dragStartY;
+                _dragGhost.style.left = (rect.left + dx) + 'px';
+                _dragGhost.style.top  = (rect.top  + dy) + 'px';
+
+                // Highlight target
+                document.querySelectorAll('.reorder-item.drag-over').forEach(x => x.classList.remove('drag-over'));
+                _dragGhost.style.display = 'none';
+                const under = document.elementFromPoint(p.clientX, p.clientY);
+                _dragGhost.style.display = '';
+                const target = under && under.closest('.reorder-item');
+                if (target && target !== _dragEl) target.classList.add('drag-over');
+            }
+
+            function onEnd(ev) {
+                document.removeEventListener(moveEvt, onMove);
+                document.removeEventListener(endEvt, onEnd);
+
+                const p = ev.changedTouches ? ev.changedTouches[0] : ev;
+                _dragGhost.style.display = 'none';
+                const under = document.elementFromPoint(p.clientX, p.clientY);
+                _dragGhost.remove(); _dragGhost = null;
+                _dragEl.style.opacity = '';
+
+                document.querySelectorAll('.reorder-item.drag-over').forEach(x => x.classList.remove('drag-over'));
+
+                const target = under && under.closest('.reorder-item');
+                if (target && target !== _dragEl) {
+                    const all = [...drinksContainer.querySelectorAll('.reorder-item')];
+                    const fi = all.indexOf(_dragEl);
+                    const ti = all.indexOf(target);
+                    if (fi < ti) target.after(_dragEl); else target.before(_dragEl);
+                    _saveOrder();
+                }
+                _dragEl = null;
+            }
+
+            document.addEventListener(moveEvt, onMove, { passive: false });
+            document.addEventListener(endEvt, onEnd, { once: true });
+        }
+
+        function _saveOrder() {
+            const items = [...drinksContainer.querySelectorAll('.reorder-item')];
+            const orderList = items.map((el, idx) => ({ id: parseInt(el.dataset.id), order: idx }));
+            fetch('/api/drinks/order', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderList)
+            }).then(r => { if (r.ok) showToast('Ordre sauvegardé', 'success'); });
         }
 
         // ==================== CART ====================

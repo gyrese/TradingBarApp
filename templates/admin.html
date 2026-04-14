@@ -95,19 +95,34 @@
             text-transform: uppercase;
         }
 
-        .drink-type-badge.bière {
+        .drink-type-badge.bières {
             background: rgba(255, 193, 7, 0.2);
             color: #ffc107;
         }
 
-        .drink-type-badge.soft {
+        .drink-type-badge.softs {
             background: rgba(0, 255, 136, 0.2);
             color: var(--green-bright);
         }
 
-        .drink-type-badge.cocktail {
+        .drink-type-badge.cocktails {
             background: rgba(168, 85, 247, 0.2);
             color: var(--purple-accent);
+        }
+
+        .drink-type-badge.alcools {
+            background: rgba(255, 100, 50, 0.2);
+            color: #ff9966;
+        }
+
+        .drink-type-badge.vins {
+            background: rgba(180, 0, 100, 0.2);
+            color: #e060a0;
+        }
+
+        .drink-type-badge.shoots {
+            background: rgba(0, 200, 255, 0.2);
+            color: #00c8ff;
         }
 
         .form-row {
@@ -251,10 +266,17 @@
             <h1><span class="text-gradient">ADMIN</span></h1>
         </div>
 
-        <div class="timer-container">
+        <div class="timer-container" style="display:flex;align-items:center;gap:0.75rem;">
             <div class="timer" id="timer">
                 <span id="timer-value">90</span>s
             </div>
+            <form id="interval-form" onsubmit="setInterval_(event)" style="display:flex;align-items:center;gap:0.4rem;" title="Durée d'un cycle (prochain cycle)">
+                <input id="interval-input" type="number" min="10" max="3600" value="90"
+                    style="width:62px;padding:4px 6px;background:#1a1d2e;border:1px solid #4a4d7a;border-radius:6px;color:#e0e0ff;font-size:0.85rem;text-align:center;"
+                    title="Intervalle en secondes">
+                <button type="submit" style="padding:4px 10px;background:#2a2d4a;border:1px solid #4a4d7a;border-radius:6px;color:#a0a0cc;font-size:0.8rem;cursor:pointer;" title="Appliquer au prochain cycle">⏱ Appliquer</button>
+                <span id="interval-feedback" style="font-size:0.75rem;color:#4caf50;display:none;">OK</span>
+            </form>
         </div>
 
         <nav class="header-nav">
@@ -267,8 +289,8 @@
 
     <!-- Krash Banner -->
     <div class="krash-banner" id="krash-banner">
-        <h2>🔥 KRASH EN COURS 🔥</h2>
-        <div class="krash-timer">Temps restant: <span id="krash-remaining">5:00</span></div>
+        <h2 id="krash-banner-title">🔥 KRASH EN COURS 🔥</h2>
+        <div class="krash-timer" id="krash-banner-sub">Temps restant: <span id="krash-remaining">1:30</span></div>
     </div>
 
     <!-- Main Content -->
@@ -287,28 +309,8 @@
             </div>
 
             <!-- Stats -->
-            <div class="admin-stats">
-                <div class="stat-card">
-                    <div class="stat-icon">🍺</div>
-                    <div class="stat-info">
-                        <div class="value" id="stat-beers">0</div>
-                        <div class="label">Bières</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">🥤</div>
-                    <div class="stat-info">
-                        <div class="value" id="stat-softs">0</div>
-                        <div class="label">Softs</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">🍹</div>
-                    <div class="stat-info">
-                        <div class="value" id="stat-cocktails">0</div>
-                        <div class="label">Cocktails</div>
-                    </div>
-                </div>
+            <div class="admin-stats" id="admin-stats-container">
+                <!-- Type cards injected dynamically by JS -->
                 <div class="stat-card">
                     <div class="stat-icon">💰</div>
                     <div class="stat-info">
@@ -403,11 +405,12 @@
 
                 <div class="form-group">
                     <label class="form-label" for="drink-type">Type</label>
-                    <select class="form-select" id="drink-type" required>
-                        <option value="Bière">🍺 Bière</option>
-                        <option value="Soft">🥤 Soft</option>
-                        <option value="Cocktail">🍹 Cocktail</option>
-                    </select>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <select class="form-select" id="drink-type" required style="flex:1;">
+                            <option value="">Chargement…</option>
+                        </select>
+                        <button type="button" class="btn btn-primary" style="padding:0 0.75rem; height:42px; font-size:1.1rem; flex-shrink:0;" onclick="openTypeModal()" title="Ajouter un type">＋</button>
+                    </div>
                 </div>
 
                 <div class="form-row">
@@ -490,6 +493,35 @@
                     onclick="closeDeleteModal()">Annuler</button>
                 <button class="btn btn-danger" id="confirm-delete-btn">Supprimer</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Add Type Modal -->
+    <div class="modal-overlay" id="type-modal" onclick="if(event.target===this)closeTypeModal()">
+        <div class="modal" style="max-width:420px;">
+            <div class="modal-header">
+                <h3>➕ Nouveau type de boisson</h3>
+                <button class="modal-close" onclick="closeTypeModal()">&times;</button>
+            </div>
+            <form id="type-form" onsubmit="saveType(event)">
+                <div class="form-group">
+                    <label class="form-label" for="type-name">Nom du type</label>
+                    <input type="text" class="form-input" id="type-name" required placeholder="Ex: Bières pression" maxlength="40">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Icône (emoji)</label>
+                    <div id="type-emoji-grid" style="display:flex; flex-wrap:wrap; gap:6px; padding:8px 0;"></div>
+                    <input type="hidden" id="type-icon" value="🍷">
+                    <div style="display:flex; align-items:center; gap:0.6rem; margin-top:6px;">
+                        <div id="type-icon-preview" style="font-size:1.6rem; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-input,#0d0d1a);">🍷</div>
+                        <span style="color:var(--text-secondary); font-size:0.8rem;">Emoji sélectionné</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" style="background:var(--border-color);" onclick="closeTypeModal()">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Créer le type</button>
+                </div>
+            </form>
         </div>
     </div>
 

@@ -627,11 +627,11 @@ class BarTradersApp:
     def start_flask_server(self):
         """Start Flask server in background thread"""
         def run_flask():
-            socketio.run(flask_app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+            socketio.run(flask_app, host='0.0.0.0', port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
             
         self.flask_thread = threading.Thread(target=run_flask, daemon=True)
         self.flask_thread.start()
-        print("🌐 Wall server started at http://localhost:5000/wall")
+        print("Wall server started at http://localhost:5000/wall")
 
 
 class DrinkDialog:
@@ -1297,9 +1297,9 @@ if __name__ == '__main__':
     app = BarTradersApp(root)
     
     print("\n" + "="*50)
-    print("🍺 BAR TRADERS - Application Caisse/Admin")
+    print("BAR TRADERS - Application Caisse/Admin")
     print("="*50)
-    print("\n🖥  Wall Display: http://localhost:5000/wall")
+    print("\nWall Display: http://localhost:5000/wall")
     print("\n" + "="*50 + "\n")
     
     root.mainloop()

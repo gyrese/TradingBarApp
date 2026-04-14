@@ -13,6 +13,8 @@ class PriceEngine:
         self.timer = PRICE_UPDATE_INTERVAL
         self.krash_active = False
         self.krash_end_time = None
+        self.krash_pending = False
+        self.krash_pending_duration = None
         self.lock = threading.Lock()
         
     def start(self):
@@ -21,7 +23,9 @@ class PriceEngine:
             return
             
         self.running = True
-        self.timer = PRICE_UPDATE_INTERVAL
+        stored = get_setting('price_update_interval')
+        self._interval = int(stored) if stored else PRICE_UPDATE_INTERVAL
+        self.timer = self._interval
         
         # Check if krash is still active from previous session
         krash_end = get_setting('krash_end_time')
@@ -57,7 +61,7 @@ class PriceEngine:
                             set_setting('krash_end_time', '')
                             drinks = update_all_prices(krash_mode=False)
                             self._emit_update(drinks, 'krash_ended')
-                            self.timer = PRICE_UPDATE_INTERVAL
+                            self.timer = self.interval
                             continue
 
                     # Decrement timer
@@ -67,15 +71,31 @@ class PriceEngine:
                     self.socketio.emit('timer_update', {
                         'timer': self.timer,
                         'krash_active': self.krash_active,
+                        'krash_pending': self.krash_pending,
                         'krash_remaining': self._get_krash_remaining()
                     })
 
                     # Update prices when timer reaches 0
                     if self.timer <= 0:
-                        if not self.krash_active:
+                        if self.krash_pending:
+                            # Activate the pending krash at cycle start
+                            duration = self.krash_pending_duration
+                            self.krash_pending = False
+                            self.krash_pending_duration = None
+                            self.krash_active = True
+                            self.krash_end_time = datetime.now() + timedelta(seconds=duration)
+                            set_setting('krash_end_time', self.krash_end_time.isoformat())
+                            drinks = update_all_prices(krash_mode=True)
+                            self._emit_update(drinks, 'krash_started')
+                            self.socketio.emit('krash', {
+                                'active': True,
+                                'duration': duration,
+                                'end_time': self.krash_end_time.isoformat()
+                            })
+                        elif not self.krash_active:
                             drinks = update_all_prices(krash_mode=False)
                             self._emit_update(drinks, 'price_update')
-                        self.timer = PRICE_UPDATE_INTERVAL
+                        self.timer = self.interval
             except Exception as e:
                 print(f"[PriceEngine] Error in update loop: {e}")
                 # Continue running despite errors
@@ -104,31 +124,35 @@ class PriceEngine:
         return max(0, int(remaining))
         
     def trigger_krash(self, duration=None):
-        """Trigger the KRASH mode"""
+        """Schedule a KRASH — activates at the start of the next cycle, lasts one full cycle"""
         if duration is None:
-            duration = KRASH_DURATION
-            
+            duration = self.interval
+
         with self.lock:
-            self.krash_active = True
-            self.krash_end_time = datetime.now() + timedelta(seconds=duration)
-            set_setting('krash_end_time', self.krash_end_time.isoformat())
-            
-            # Update all prices to krash prices
-            drinks = update_all_prices(krash_mode=True)
-            self._emit_update(drinks, 'krash_started')
-            
-            # Emit krash notification
+            if self.krash_active:
+                return False  # already running
+
+            self.krash_pending = True
+            self.krash_pending_duration = duration
+
+            # Notify clients that a krash is incoming at next cycle
             self.socketio.emit('krash', {
-                'active': True,
-                'duration': duration,
-                'end_time': self.krash_end_time.isoformat()
+                'pending': True,
+                'timer': self.timer,
+                'duration': duration
             })
-            
+
             return True
             
     def stop_krash(self):
-        """Stop the KRASH mode early"""
+        """Cancel pending krash or stop an active KRASH early"""
         with self.lock:
+            if self.krash_pending:
+                self.krash_pending = False
+                self.krash_pending_duration = None
+                self.socketio.emit('krash', {'pending': False, 'active': False})
+                return True
+
             if not self.krash_active:
                 return False
                 
@@ -139,19 +163,34 @@ class PriceEngine:
             # Update prices to exit krash
             drinks = update_all_prices(krash_mode=False)
             self._emit_update(drinks, 'krash_ended')
-            self.timer = PRICE_UPDATE_INTERVAL
-            
+            self.timer = self.interval
+
             self.socketio.emit('krash', {
                 'active': False
             })
             
             return True
             
+    def set_interval(self, seconds):
+        """Change the cycle interval — takes effect at the next cycle"""
+        seconds = max(10, min(3600, int(seconds)))
+        with self.lock:
+            self._interval = seconds
+            set_setting('price_update_interval', str(seconds))
+
+    @property
+    def interval(self):
+        if not hasattr(self, '_interval'):
+            stored = get_setting('price_update_interval')
+            self._interval = int(stored) if stored else PRICE_UPDATE_INTERVAL
+        return self._interval
+
     def get_status(self):
         """Get current engine status"""
         return {
             'timer': self.timer,
-            'interval': PRICE_UPDATE_INTERVAL,
+            'interval': self.interval,
             'krash_active': self.krash_active,
+            'krash_pending': self.krash_pending,
             'krash_remaining': self._get_krash_remaining()
         }

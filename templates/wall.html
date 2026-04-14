@@ -648,7 +648,7 @@
     <header class="header">
         <div class="logo">
             <span class="logo-icon">📈</span>
-            <span class="logo-text">BAR TRADERS</span>
+            <span class="logo-text">La Bourse des Toiles</span>
         </div>
 
         <div class="header-right">
@@ -668,8 +668,8 @@
 
     <!-- Krash Banner -->
     <div class="krash-banner" id="krash-banner">
-        <h2>⚡ KRASH BOURSIER EN COURS ⚡</h2>
-        <div class="krash-timer">Temps restant: <span id="krash-remaining">5:00</span></div>
+        <h2 id="krash-banner-title">⚡ KRASH BOURSIER EN COURS ⚡</h2>
+        <div class="krash-timer" id="krash-banner-sub">Temps restant: <span id="krash-remaining">1:30</span></div>
     </div>
 
     <!-- Main Content -->
@@ -821,7 +821,9 @@
             if (data.krash_active) {
                 krashActive = true;
                 updateKrashTimer(data.krash_remaining);
-                showKrashBanner();
+                showKrashBanner(false);
+            } else if (data.krash_pending) {
+                showKrashBanner(true);
             } else if (krashActive) {
                 krashActive = false;
                 hideKrashBanner();
@@ -835,8 +837,15 @@
         });
 
         socket.on('krash', (data) => {
-            krashActive = data.active;
-            data.active ? showKrashBanner() : hideKrashBanner();
+            if (data.active) {
+                krashActive = true;
+                showKrashBanner(false);
+            } else if (data.pending) {
+                showKrashBanner(true);
+            } else {
+                krashActive = false;
+                hideKrashBanner();
+            }
         });
 
         function updateTimer(seconds) {
@@ -846,7 +855,18 @@
             else if (seconds <= 20) timerValue.classList.add('warning');
         }
 
-        function showKrashBanner() {
+        function showKrashBanner(pending = false) {
+            const title = document.getElementById('krash-banner-title');
+            const sub = document.getElementById('krash-banner-sub');
+            if (pending) {
+                title.textContent = '⏳ KRASH AU PROCHAIN CYCLE…';
+                if (sub) sub.style.display = 'none';
+                krashBanner.style.background = 'linear-gradient(135deg, #5a3a00, #3a2800)';
+            } else {
+                title.textContent = '⚡ KRASH BOURSIER EN COURS ⚡';
+                if (sub) sub.style.display = '';
+                krashBanner.style.background = '';
+            }
             krashBanner.classList.add('active');
             mainContent.classList.add('with-krash');
         }
@@ -940,7 +960,7 @@
                         <div class="category-header">
                             <div class="category-badge">
                                 <span class="category-icon">${config.icon}</span>
-                                <span class="category-title">${category}s</span>
+                                <span class="category-title">${category}</span>
                             </div>
                             <span class="category-count">${items.length} boissons</span>
                             <div class="category-line"></div>

@@ -146,10 +146,13 @@ function updateKrashButton() {
 
 // ==================== RENDER DRINKS ====================
 
+
 function renderDrinks() {
     const categoryOrder = ['Bière', 'Soft', 'Cocktail'];
     const sortedCategories = Object.keys(drinks).sort((a, b) => {
-        return categoryOrder.indexOf(a) - categoryOrder.indexOf(b);
+        const ia = categoryOrder.indexOf(a);
+        const ib = categoryOrder.indexOf(b);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
     });
 
     let html = '';
@@ -164,7 +167,7 @@ function renderDrinks() {
                     <span class="icon">${categoryIcons[category] || '🍷'}</span>
                     ${category}s
                 </h3>
-                <div class="caisse-grid">
+                <div class="caisse-grid" data-category="${category}">
         `;
 
         for (const drink of categoryDrinks) {
@@ -178,16 +181,187 @@ function renderDrinks() {
     }
 
     drinksContainer.innerHTML = html;
+    initDragAndDrop();
 }
 
 function renderDrinkButton(drink) {
     return `
-        <button class="caisse-btn ${krashActive ? 'krash' : ''}" 
-                onclick="recordSale(${drink.id}, '${drink.name.replace(/'/g, "\\'")}', ${drink.price_current})">
+        <div class="caisse-btn ${krashActive ? 'krash' : ''}"
+             data-drink-id="${drink.id}"
+             data-drink-name="${drink.name.replace(/"/g, '&quot;')}"
+             data-drink-price="${drink.price_current}">
             <div class="name">${drink.name}</div>
             <div class="price">${drink.price_current.toFixed(2)}€</div>
-        </button>
+        </div>
     `;
+}
+
+// ==================== DRAG & DROP (touch + mouse) ====================
+
+let longPressTimer = null;
+let dragEl = null;
+let dragGhost = null;
+let dragGrid = null;
+let dragStarted = false;
+const LONG_PRESS_MS = 500;
+
+function initDragAndDrop() {
+    document.querySelectorAll('.caisse-btn').forEach(btn => {
+        btn.addEventListener('touchstart', onPointerDown, { passive: false });
+        btn.addEventListener('mousedown', onPointerDown);
+    });
+}
+
+function onPointerDown(e) {
+    const btn = this;
+    const isTouch = e.type === 'touchstart';
+    dragStarted = false;
+
+    // Start long-press timer
+    longPressTimer = setTimeout(() => {
+        dragStarted = true;
+        startDrag(btn, isTouch ? e.touches[0] : e);
+    }, LONG_PRESS_MS);
+
+    const moveEvt = isTouch ? 'touchmove' : 'mousemove';
+    const endEvt = isTouch ? 'touchend' : 'mouseup';
+
+    const onMove = (ev) => {
+        // If still waiting for long press, cancel if finger moved too much
+        if (!dragStarted) {
+            const pt = ev.touches ? ev.touches[0] : ev;
+            const startPt = isTouch ? e.touches[0] : e;
+            const dx = pt.clientX - startPt.clientX;
+            const dy = pt.clientY - startPt.clientY;
+            if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                clearTimeout(longPressTimer);
+                cleanup();
+            }
+            return;
+        }
+        ev.preventDefault();
+        moveDrag(ev.touches ? ev.touches[0] : ev);
+    };
+
+    const onEnd = () => {
+        clearTimeout(longPressTimer);
+        if (dragStarted) {
+            endDrag();
+        } else {
+            // Short tap = vente
+            const id = parseInt(btn.dataset.drinkId);
+            const name = btn.dataset.drinkName;
+            const price = parseFloat(btn.dataset.drinkPrice);
+            recordSale(id, name, price);
+        }
+        cleanup();
+    };
+
+    function cleanup() {
+        document.removeEventListener(moveEvt, onMove);
+        document.removeEventListener(endEvt, onEnd);
+        if (isTouch) document.removeEventListener('touchcancel', onEnd);
+    }
+
+    document.addEventListener(moveEvt, onMove, { passive: false });
+    document.addEventListener(endEvt, onEnd, { once: true });
+    if (isTouch) document.addEventListener('touchcancel', onEnd, { once: true });
+}
+
+function startDrag(btn, point) {
+    dragEl = btn;
+    dragGrid = btn.closest('.caisse-grid');
+    btn.classList.add('dragging');
+
+    // Ghost element that follows the finger
+    dragGhost = btn.cloneNode(true);
+    dragGhost.classList.add('drag-ghost');
+    const rect = btn.getBoundingClientRect();
+    dragGhost.style.width = rect.width + 'px';
+    dragGhost.style.height = rect.height + 'px';
+    dragGhost.style.left = point.clientX - rect.width / 2 + 'px';
+    dragGhost.style.top = point.clientY - rect.height / 2 + 'px';
+    document.body.appendChild(dragGhost);
+
+    // Vibrate on mobile if available
+    if (navigator.vibrate) navigator.vibrate(30);
+}
+
+function moveDrag(point) {
+    if (!dragGhost) return;
+
+    // Move ghost
+    const rect = dragGhost.getBoundingClientRect();
+    dragGhost.style.left = point.clientX - rect.width / 2 + 'px';
+    dragGhost.style.top = point.clientY - rect.height / 2 + 'px';
+
+    // Highlight drop target
+    document.querySelectorAll('.caisse-btn.drag-over').forEach(el => el.classList.remove('drag-over'));
+    const target = getDropTarget(point);
+    if (target && target !== dragEl) {
+        target.classList.add('drag-over');
+    }
+}
+
+function getDropTarget(point) {
+    // Temporarily hide ghost so elementFromPoint finds what's underneath
+    if (dragGhost) dragGhost.style.pointerEvents = 'none';
+    const el = document.elementFromPoint(point.clientX, point.clientY);
+    if (dragGhost) dragGhost.style.pointerEvents = '';
+    if (!el) return null;
+    const btn = el.closest('.caisse-btn');
+    if (!btn || !dragGrid || !dragGrid.contains(btn)) return null;
+    return btn;
+}
+
+function endDrag() {
+    if (!dragEl || !dragGrid) return;
+
+    // Find current drop target from ghost position
+    let target = null;
+    if (dragGhost) {
+        const ghostRect = dragGhost.getBoundingClientRect();
+        const cx = ghostRect.left + ghostRect.width / 2;
+        const cy = ghostRect.top + ghostRect.height / 2;
+        target = getDropTarget({ clientX: cx, clientY: cy });
+    }
+
+    if (target && target !== dragEl) {
+        const allBtns = [...dragGrid.querySelectorAll('.caisse-btn')];
+        const fromIdx = allBtns.indexOf(dragEl);
+        const toIdx = allBtns.indexOf(target);
+        if (fromIdx < toIdx) {
+            target.after(dragEl);
+        } else {
+            target.before(dragEl);
+        }
+        saveDrinkOrder();
+    }
+
+    // Cleanup
+    dragEl.classList.remove('dragging');
+    document.querySelectorAll('.caisse-btn.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if (dragGhost) { dragGhost.remove(); dragGhost = null; }
+    dragEl = null;
+    dragGrid = null;
+    dragStarted = false;
+}
+
+function saveDrinkOrder() {
+    const orderList = [];
+    document.querySelectorAll('.caisse-grid').forEach(grid => {
+        grid.querySelectorAll('.caisse-btn').forEach((btn, idx) => {
+            orderList.push({ id: parseInt(btn.dataset.drinkId), order: idx });
+        });
+    });
+
+    fetch('/api/drinks/order', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderList)
+    }).then(res => {
+        if (res.ok) showToast('Ordre sauvegardé', 'success');
+    }).catch(() => showToast('Erreur sauvegarde ordre', 'error'));
 }
 
 // ==================== SALES ====================
@@ -264,7 +438,7 @@ function confirmKrash() {
     fetch('/api/krash', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ duration: 300 }) // 5 minutes
+        body: JSON.stringify({})
     })
         .then(res => {
             if (res.ok) {

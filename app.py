@@ -10,7 +10,8 @@ from database import (
     init_db, get_all_drinks, get_drinks_by_type, get_drink_by_id,
     add_drink, update_drink, delete_drink, record_sale,
     get_sales_today, get_sales_summary, get_price_history,
-    get_drink_types_with_icons, create_ticket, get_setting, set_setting
+    get_drink_types_with_icons, get_all_drink_types, add_drink_type, delete_drink_type,
+    update_drinks_order, create_ticket, get_setting, set_setting
 )
 from price_engine import PriceEngine
 from config import PRICE_UPDATE_INTERVAL, KRASH_DURATION
@@ -103,6 +104,16 @@ def api_get_drinks():
     """Get all drinks"""
     drinks = get_drinks_by_type()
     return jsonify(drinks)
+
+@app.route('/api/drinks/order', methods=['PUT'])
+@login_required
+def api_update_drinks_order():
+    """Update display order of drinks"""
+    data = request.json
+    if not isinstance(data, list):
+        return jsonify({'error': 'Expected a list'}), 400
+    update_drinks_order(data)
+    return jsonify({'success': True})
 
 @app.route('/api/drinks/<int:drink_id>')
 def api_get_drink(drink_id):
@@ -305,6 +316,35 @@ def api_get_types():
     types = get_drink_types_with_icons()
     return jsonify(types)
 
+@app.route('/api/types/list')
+def api_list_types():
+    """Get all drink types as a list"""
+    types = get_all_drink_types()
+    return jsonify(types)
+
+@app.route('/api/types', methods=['POST'])
+@login_required
+def api_create_type():
+    """Create a new drink type"""
+    data = request.json
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Nom requis'}), 400
+    icon = data.get('icon', '🍷')
+    display_order = int(data.get('display_order', 99))
+    try:
+        type_id = add_drink_type(name, icon, display_order)
+        return jsonify({'id': type_id, 'name': name, 'icon': icon}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/types/<int:type_id>', methods=['DELETE'])
+@login_required
+def api_delete_type(type_id):
+    """Soft-delete a drink type"""
+    delete_drink_type(type_id)
+    return jsonify({'success': True})
+
 @app.route('/api/ticket', methods=['POST'])
 @login_required
 def api_create_ticket():
@@ -348,14 +388,33 @@ def api_get_status():
         return jsonify(price_engine.get_status())
     return jsonify({'timer': PRICE_UPDATE_INTERVAL, 'krash_active': False})
 
+@app.route('/api/interval', methods=['POST'])
+@login_required
+def api_set_interval():
+    """Update the price cycle interval (takes effect at next cycle)"""
+    global price_engine
+    data = request.json or {}
+    try:
+        seconds = int(data.get('seconds', 0))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Valeur invalide'}), 400
+    if seconds < 10 or seconds > 3600:
+        return jsonify({'error': 'L\'intervalle doit être entre 10 et 3600 secondes'}), 400
+    if price_engine:
+        price_engine.set_interval(seconds)
+        return jsonify({'success': True, 'interval': price_engine.interval})
+    return jsonify({'error': 'Price engine not running'}), 500
+
 @app.route('/api/krash', methods=['POST'])
 @login_required
 def api_trigger_krash():
     """Trigger KRASH mode"""
     global price_engine
     data = request.json or {}
-    duration = int(data.get('duration', KRASH_DURATION))
-    if duration <= 0 or duration > 3600:
+    # Duration defaults to None → price_engine uses self.interval (one full cycle)
+    raw = data.get('duration')
+    duration = int(raw) if raw else None
+    if duration is not None and (duration <= 0 or duration > 3600):
         return jsonify({'error': 'La durée doit être entre 1 et 3600 secondes'}), 400
 
     if price_engine:

@@ -453,6 +453,30 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--green-bright);
 }
 
+.caisse-btn.dragging {
+    opacity: 0.3;
+    border: 2px dashed rgba(255, 215, 64, 0.6);
+}
+
+.caisse-btn.drag-over {
+    border-color: var(--gold, #ffd740);
+    box-shadow: 0 0 16px rgba(255, 215, 64, 0.5);
+    transform: scale(1.05);
+}
+
+.drag-ghost {
+    position: fixed;
+    z-index: 10000;
+    pointer-events: none;
+    opacity: 0.85;
+    transform: scale(1.08) rotate(2deg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    border: 2px solid var(--gold, #ffd740);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    transition: none;
+}
+
 .sales-panel {
     background: var(--bg-card);
     border-radius: var(--radius-lg);
