@@ -1173,8 +1173,27 @@
         // drag state
         let _dragEl = null, _dragGhost = null, _dragStartX = 0, _dragStartY = 0;
 
+        const drinkLogos = {
+            'desperados': '/static/images/logos/desperados.png',
+            'heineken':   '/static/images/logos/heineken.png',
+            'guinness':   '/static/images/logos/guinness.png',
+            'orangina':   '/static/images/logos/orangina.png',
+            'perrier':    '/static/images/logos/perrier.png',
+            'chipek':     '/static/images/logos/chipek.png',
+            'grim':       '/static/images/logos/grimbergen.png',
+            'phoenix':    '/static/images/logos/phoenix.png',
+            'slash':      '/static/images/logos/slash.png',
+        };
+
         function getDrinkEmoji(name, type) {
-            // Icône du type de boisson (depuis la base via categoryConfig)
+            // 1. Logo de marque par nom
+            const lower = name.toLowerCase();
+            for (const [key, path] of Object.entries(drinkLogos)) {
+                if (lower.includes(key)) {
+                    return `<img src="${path}" style="width:3rem;height:3rem;object-fit:contain;border-radius:6px;">`;
+                }
+            }
+            // 2. Icône du type de boisson
             return categoryConfig[type]?.icon || '🍷';
         }
 
@@ -1416,7 +1435,7 @@
                 }
 
                 drinksContainer.innerHTML = allDrinks.map(drink => {
-                    const emoji = getDrinkEmoji(drink.name, drink.type || drink.category);
+                    const iconHtml = getDrinkEmoji(drink.name, drink.type || drink.category);
                     const isKrash = krashActive ? 'krash' : '';
                     const escapedName = drink.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
@@ -1424,10 +1443,10 @@
                         return `
                             <div class="drink-btn ${isKrash} reorder-item"
                                  data-id="${drink.id}" data-name="${escapedName}"
-                                 data-price="${drink.price_current}" data-emoji="${emoji}">
+                                 data-price="${drink.price_current}">
                                 <div class="added-flash"></div>
                                 <span style="position:absolute;top:4px;right:6px;font-size:1rem;opacity:0.5;">⠿</span>
-                                <span class="d-emoji">${emoji}</span>
+                                <span class="d-emoji">${iconHtml}</span>
                                 <span class="d-name">${drink.name}</span>
                                 <span class="d-price">${drink.price_current.toFixed(2)}€</span>
                             </div>
@@ -1435,9 +1454,9 @@
                     }
                     return `
                         <button class="drink-btn ${isKrash}" id="drink-btn-${drink.id}"
-                                onclick="addToCart(${drink.id}, '${escapedName}', ${drink.price_current}, '${emoji}')">
+                                onclick="addToCart(${drink.id}, '${escapedName}', ${drink.price_current})">
                             <div class="added-flash"></div>
-                            <span class="d-emoji">${emoji}</span>
+                            <span class="d-emoji">${iconHtml}</span>
                             <span class="d-name">${drink.name}</span>
                             <span class="d-price">${drink.price_current.toFixed(2)}€</span>
                         </button>
@@ -1572,7 +1591,17 @@
         }
 
         // ==================== CART ====================
-        function addToCart(drinkId, drinkName, price, emoji) {
+        function getCartIcon(drinkName) {
+            const lower = drinkName.toLowerCase();
+            for (const [key, path] of Object.entries(drinkLogos)) {
+                if (lower.includes(key)) {
+                    return `<img src="${path}" style="width:2rem;height:2rem;object-fit:contain;border-radius:4px;">`;
+                }
+            }
+            return '🍺';
+        }
+
+        function addToCart(drinkId, drinkName, price) {
             // Geler les prix à l'ouverture du ticket (premier article)
             if (cart.length === 0) {
                 ticketOpen = true;
@@ -1583,7 +1612,7 @@
                 existing.quantity++;
                 // Ne pas changer existing.price : le prix reste figé
             } else {
-                cart.push({ drink_id: drinkId, drink_name: drinkName, price, quantity: 1, emoji });
+                cart.push({ drink_id: drinkId, drink_name: drinkName, price, quantity: 1 });
             }
 
             // Flash animation
@@ -1654,7 +1683,7 @@
 
             cartItemsEl.innerHTML = cart.map(item => `
                 <div class="cart-item">
-                    <span class="ci-emoji">${item.emoji}</span>
+                    <span class="ci-emoji">${getCartIcon(item.drink_name)}</span>
                     <div class="ci-info">
                         <div class="ci-name">${item.drink_name}</div>
                         <div class="ci-unit-price">${item.price.toFixed(2)}€ / unité</div>
