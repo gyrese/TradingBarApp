@@ -10,7 +10,7 @@ from database import (
     init_db, get_all_drinks, get_drinks_by_type, get_drink_by_id,
     add_drink, update_drink, delete_drink, record_sale,
     get_sales_today, get_sales_summary, get_price_history,
-    get_drink_types_with_icons, get_all_drink_types, add_drink_type, delete_drink_type,
+    get_drink_types_with_icons, get_all_drink_types, add_drink_type, update_drink_type, delete_drink_type,
     update_drinks_order, create_ticket, get_setting, set_setting
 )
 from price_engine import PriceEngine
@@ -335,6 +335,21 @@ def api_create_type():
     try:
         type_id = add_drink_type(name, icon, display_order)
         return jsonify({'id': type_id, 'name': name, 'icon': icon}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/types/<int:type_id>', methods=['PUT'])
+@login_required
+def api_update_type(type_id):
+    """Update a drink type name and icon"""
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    icon = (data.get('icon') or '🍷').strip()
+    if not name:
+        return jsonify({'error': 'Nom requis'}), 400
+    try:
+        update_drink_type(type_id, name, icon, data.get('display_order', 99))
+        return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 

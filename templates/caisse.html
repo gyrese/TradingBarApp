@@ -1173,29 +1173,9 @@
         // drag state
         let _dragEl = null, _dragGhost = null, _dragStartX = 0, _dragStartY = 0;
 
-        // Emoji map
-        const drinkEmojis = {
-            'heineken': '🍺', 'corona': '🍺', 'leffe': '🍺', 'leffe blonde': '🍺',
-            'desperados': '🍺', 'guinness': '🍫', '1664': '🍺', 'kronenbourg': '🍺',
-            'coca-cola': '🥤', 'coca cola': '🥤', 'coca': '🥤', 'orangina': '🍊',
-            'perrier': '💧', 'red bull': '⚡', 'ice tea': '🧊', 'sprite': '🥤',
-            'mojito': '🍸', 'piña colada': '🍹', 'pina colada': '🍹', 'margarita': '🍸',
-            'sex on beach': '🏖️', 'sex on the beach': '🏖️', 'cuba libre': '🍹',
-            'tequila sunrise': '🌅', 'long island': '🍹',
-            // Vins
-            'vin rouge': '🍷', 'vin blanc': '🥂', 'rosé': '🍷', 'champagne': '🥂'
-        };
-
         function getDrinkEmoji(name, type) {
-            const lower = name.toLowerCase();
-
-            // Exact match
-            if (drinkEmojis[lower]) return drinkEmojis[lower];
-            for (const [key, emoji] of Object.entries(drinkEmojis)) {
-                if (lower.includes(key) || key.includes(lower)) return emoji;
-            }
-            const typeEmojis = { 'Bière': '🍺', 'Soft': '🥤', 'Cocktail': '🍹', 'Shot': '🥃', 'Vin': '🍷' };
-            return typeEmojis[type] || '🍷';
+            // Icône du type de boisson (depuis la base via categoryConfig)
+            return categoryConfig[type]?.icon || '🍷';
         }
 
         // ==================== DOM ====================

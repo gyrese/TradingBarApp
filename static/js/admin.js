@@ -522,11 +522,8 @@ async function changePin() {
 
 // ==================== TYPE MODAL ====================
 
-const TYPE_EMOJIS = [
-    '🍺','🍻','🥂','🍷','🥃','🍸','🍹','🧉',
-    '🥤','🧃','☕','🍵','🧋','🫖','🍶','🥛',
-    '🍾','🫗','🌊','🫧','🔥','❄️','⭐','💎',
-];
+// Réutilise la même liste que le picker de boissons
+const TYPE_EMOJIS = DRINK_EMOJIS;
 
 function openTypeModal() {
     document.getElementById('type-name').value = '';
@@ -572,6 +569,67 @@ async function saveType(e) {
         showToast(`Type "${name}" créé !`, 'success');
         await loadTypes();
         // Auto-select the new type in the drink form
+        populateTypeSelect(name);
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+// ==================== EDIT TYPE MODAL ====================
+
+function openEditTypeModal() {
+    const sel = document.getElementById('drink-type');
+    const selectedName = sel.value;
+    const type = drinkTypes.find(t => t.name === selectedName);
+    if (!type) {
+        showToast('Sélectionne un type à modifier', 'error');
+        return;
+    }
+
+    document.getElementById('edit-type-id').value = type.id;
+    document.getElementById('edit-type-name').value = type.name;
+    document.getElementById('edit-type-icon').value = type.icon || '🍷';
+    document.getElementById('edit-type-icon-preview').textContent = type.icon || '🍷';
+
+    const grid = document.getElementById('edit-type-emoji-grid');
+    grid.innerHTML = TYPE_EMOJIS.map(e =>
+        `<button type="button" class="emoji-btn ${e === type.icon ? 'selected' : ''}" data-ete="${e}" onclick="selectEditTypeEmoji('${e}')">${e}</button>`
+    ).join('');
+
+    document.getElementById('edit-type-modal').classList.add('active');
+}
+
+function closeEditTypeModal() {
+    document.getElementById('edit-type-modal').classList.remove('active');
+}
+
+function selectEditTypeEmoji(emoji) {
+    document.getElementById('edit-type-icon').value = emoji;
+    document.getElementById('edit-type-icon-preview').textContent = emoji;
+    document.querySelectorAll('#edit-type-emoji-grid .emoji-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.ete === emoji);
+    });
+}
+
+async function saveEditType(e) {
+    e.preventDefault();
+    const id = parseInt(document.getElementById('edit-type-id').value);
+    const name = document.getElementById('edit-type-name').value.trim();
+    const icon = document.getElementById('edit-type-icon').value || '🍷';
+    const type = drinkTypes.find(t => t.id === id);
+    const display_order = type ? type.display_order : 99;
+
+    try {
+        const res = await fetch(`/api/types/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, icon, display_order })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erreur');
+        closeEditTypeModal();
+        showToast(`Type "${name}" modifié !`, 'success');
+        await loadTypes();
         populateTypeSelect(name);
     } catch (err) {
         showToast(err.message, 'error');
